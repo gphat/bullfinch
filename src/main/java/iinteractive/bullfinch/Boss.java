@@ -7,9 +7,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 
-import org.json.simple.JSONObject;
+import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,12 +27,7 @@ public class Boss {
 
 	static Logger logger = LoggerFactory.getLogger(Boss.class);
 
-	private String workHost;
-	private int workPort;
-	private String workerClass;
-	private int workerCount;
-	private String queue;
-	private int timeout;
+	private HashMap<String,ArrayList<Thread>> minionGroups;
 
 	public static void main(String[] args) {
 
@@ -46,9 +44,10 @@ public class Boss {
 			return;
 		}
 
-		JSONObject config;
+		JSONArray config;
 		try {
 			config = readConfigFile(configFile);
+
 		} catch(Exception e) {
 			logger.error("Failed to parse config file", e);
 			return;
@@ -56,11 +55,24 @@ public class Boss {
 
 		try {
 			@SuppressWarnings("unchecked")
-			Boss boss = new Boss(config);
+			Boss boss = new Boss();
 
 			@SuppressWarnings("unchecked")
-			HashMap<String,Object> workerConfig = (HashMap<String,Object>) config.get("worker_config");
-			boss.start(workerConfig);
+			Iterator<HashMap<String,Object>> workers = config.iterator();
+
+			// The config has at least one worker in it, so we'll treat iterate
+			// over the workers and spin off each one in turn.
+			while(workers.hasNext()) {
+				HashMap<String,Object> worker = (HashMap<String,Object>) workers.next();
+				@SuppressWarnings("unchecked")
+				HashMap<String,Object> workerConfig = (HashMap<String,Object>) worker.get("worker_config");
+				boss.prepare(workerConfig);
+			}
+
+			// Start all the threads now that we've verified that all were
+			// properly readied.
+			boss.start();
+
 		} catch(Exception e) {
 			logger.error("Failed to load worker", e);
 		}
@@ -70,28 +82,70 @@ public class Boss {
 	 * Create a new Boss object.
 	 *
 	 * @param config Configuration (as a hashmap)
-	 * @throws ClassNotFoundException
-	 * @throws IllegalAccessException
 	 */
-	public Boss(HashMap<String,Object> config)
-		throws ClassNotFoundException, IllegalAccessException {
+	public Boss() {
 
-		this.workHost = (String) config.get("work_host");
-		this.workPort = ((Long) config.get("work_port")).intValue();
-		this.workerClass = (String) config.get("worker_class");
-		this.queue = (String) config.get("subscribe_to");
-		this.workerCount = ((Long) config.get("worker_count")).intValue();
-		this.timeout = ((Long) config.get("timeout")).intValue();
 	}
 
-	/**
-	 * Start the worker threads.
-	 *
-	 * @param workerConfig The worker configuration from the config file.
-	 */
-	public void start(HashMap<String,Object> workerConfig) {
+	public void prepare(HashMap<String,Object> workConfig) throws Exception {
 
-		for(int i = 0; i < this.workerCount; i++) {
+		String name = (String) workConfig.get("name");
+		if(name == null) {
+			throw new Exception("Each worker must have a name!");
+		}
+
+		String workHost = (String) workConfig.get("kestrel_host");
+		if(workHost == null) {
+			throw new Exception("Each worker must have a kestrel_host!");
+		}
+
+		Long workPortLng = (Long) workConfig.get("kestrel_port");
+		if(workPortLng == null) {
+			throw new Exception("Each worker must have a kestrel_port!");
+		}
+		int workPort = workPortLng.intValue();
+
+		String workerClass = (String) workConfig.get("worker_class");
+		if(workerClass == null) {
+			throw new Exception("Each worker must have a worker_class!");
+		}
+
+		String queue = (String) workConfig.get("subscribe_to");
+		if(queue == null) {
+			throw new Exception("Each worker must have a subscribe_to!");
+		}
+
+		Long workerCountLng = (Long) workConfig.get("worker_count");
+		// Default to a single worker
+		int workerCount = 1;
+		if(workerCountLng != null) {
+			// But allow it to be overridden.
+			workerCount = workerCountLng.intValue();
+		}
+
+		Long timeoutLng = (Long) workConfig.get("timeout");
+		if(timeoutLng == null) {
+			throw new Exception("Each worker must have a timeout!");
+		}
+		int timeout = timeoutLng.intValue();
+
+		// Get the config options to pass to the worker
+		@SuppressWarnings("unchecked")
+		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("worker_config");
+
+		if(workerConfig == null) {
+			throw new Exception("Each worker must have a worker_config!");
+		}
+
+		// First, create a threadgroup to contain this worker's threads
+		ThreadGroup tgroup = new ThreadGroup(name);
+		// We're using our own threadgroup because threadgroups are pretty much
+		// useless.  We're using them only because it's nice to group them
+		// logically.
+		ArrayList<Thread> workerThreads = new ArrayList<Thread>();
+		logger.debug("Created threadgroup for " + name);
+
+		for(int i = 0; i < workerCount; i++) {
 
 			// Spin up a thread for each worker we were told ot make.
 			try {
@@ -101,15 +155,38 @@ public class Boss {
 				worker.configure(workerConfig);
 
 				// Give it it's very own kestrel connection.
-				Client kestrel = new Client(this.workHost, this.workPort);
+				Client kestrel = new Client(workHost, workPort);
 				kestrel.connect();
 
-				// Spin up the thread.
-				Thread workThread = new Minion(kestrel, this.queue, worker, this.timeout);
-				workThread.start();
-				logger.debug("Started thread " + i);
+				// Create the thread.
+				Runnable workerInstance = new Minion(kestrel, queue, worker, timeout);
+				Thread workerThread = new Thread(tgroup, workerInstance);
+				workerThreads.add(workerThread);
+
+				logger.debug("Readied thread (" + tgroup.getName() + "): " + i);
 			} catch(Exception e) {
-				logger.error("Failed to spawn worker thread", e);
+				logger.error("Failed to ready worker thread", e);
+			}
+		}
+		this.minionGroups.put(tgroup.getName(), workerThreads);
+		logger.debug("Added worker threads to minion map.");
+	}
+
+	/**
+	 * Start the worker threads.
+	 */
+	public void start() {
+
+		Iterator<String> workerNames = this.minionGroups.keySet().iterator();
+		// Iterate over each worker "group"...
+		while(workerNames.hasNext()) {
+			String name = workerNames.next();
+			List<Thread> threads = this.minionGroups.get(name);
+			Iterator<Thread> workers = threads.iterator();
+			while(workers.hasNext()) {
+				// And start each thread in the group
+				Thread worker = workers.next();
+				worker.start();
 			}
 		}
 	}
@@ -123,14 +200,14 @@ public class Boss {
 	 * @throws FileNotFoundException
 	 * @throws IOException
 	 */
-	private static JSONObject readConfigFile(URL configFile)
+	private static JSONArray readConfigFile(URL configFile)
 		throws Exception, FileNotFoundException, IOException {
 
-		JSONObject config;
+		JSONArray config;
         try {
             JSONParser parser = new JSONParser();
 
-            config = (JSONObject) parser.parse(
+            config = (JSONArray) parser.parse(
             	new InputStreamReader(configFile.openStream())
             );
         }

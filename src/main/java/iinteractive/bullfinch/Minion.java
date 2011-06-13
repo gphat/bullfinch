@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * @author gphat
  *
  */
-public class Minion extends Thread {
+public class Minion implements Runnable {
 
 	static Logger logger = LoggerFactory.getLogger(Minion.class);
 	private String queueName;
@@ -60,6 +60,7 @@ public class Minion extends Thread {
 				if(val != null) {
 					logger.debug("Got item from queue:\n" + val);
 					JSONObject request = (JSONObject) parser.parse(new StringReader(val));
+
 
 					Iterator<String> items = this.worker.handle(request);
 					while(items.hasNext()) {

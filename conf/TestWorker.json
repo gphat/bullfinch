@@ -1,7 +1,8 @@
-{
-    "work_host" : "10.0.1.36",
-    "work_port" : 2222,
-    "worker_class" : "iinteractive.kestrel.workers.JDBCWorker",
+[
+    "name" : "JDBC Worker",
+    "kestrel_host" : "10.0.1.36",
+    "kestrel_port" : 2222,
+    "worker_class" : "iinteractive.bullfinch.JDBCWorker",
     "worker_count" : 2,
     "subscribe_to" : "test-net-kestrel",
     "timeout" : 10000,
@@ -21,4 +22,4 @@
             }
         }
     }
-}
+]
