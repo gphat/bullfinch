@@ -1,0 +1,24 @@
+{
+    "work_host" : "10.0.1.36",
+    "work_port" : 2222,
+    "worker_class" : "iinteractive.kestrel.workers.JDBCWorker",
+    "worker_count" : 2,
+    "subscribe_to" : "test-net-kestrel",
+    "timeout" : 10000,
+    "worker_config"  : {
+        "connection" : {
+            "driver" : "com.mysql.jdbc.Driver",
+            "dsn" : "jdbc:mysql://localhost/labor",
+            "uid" : "root",
+        },
+        "statements" : {
+            "getAllAddresses" : {
+                "sql"    : "SELECT * FROM address",
+            },
+            "getAllActiveECodesByPage" : {
+                "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
+                "params" : [ "INTEGER", "INTEGER" ]
+            }
+        }
+    }
+}
