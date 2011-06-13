@@ -3,8 +3,10 @@ package iinteractive.bullfinch;
 import iinteractive.kestrel.Client;
 
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 
 import org.json.simple.JSONObject;
@@ -13,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Main class that drives workers for a Kestrel queue.
+ * Main class that drives workers from a Kestrel queue.
  *
  * @author gphat
  *
@@ -36,7 +38,14 @@ public class Boss {
 			return;
 		}
 
-		String configFile = args[0];
+		URL configFile;
+		try {
+			configFile = new URL(args[0]);
+		} catch (MalformedURLException e) {
+			System.err.println("Must prode a well-formed url as a config file argument: " + args[0]);
+			return;
+		}
+
 		JSONObject config;
 		try {
 			config = readConfigFile(configFile);
@@ -114,17 +123,20 @@ public class Boss {
 	 * @throws FileNotFoundException
 	 * @throws IOException
 	 */
-	private static JSONObject readConfigFile(String path)
+	private static JSONObject readConfigFile(URL configFile)
 		throws Exception, FileNotFoundException, IOException {
 
 		JSONObject config;
         try {
             JSONParser parser = new JSONParser();
-            config = (JSONObject) parser.parse( new FileReader(path) );
+
+            config = (JSONObject) parser.parse(
+            	new InputStreamReader(configFile.openStream())
+            );
         }
         catch ( Exception e ) {
             logger.error("Failed to parse config file", e);
-            throw new Exception("Failed to parse config file=(" + path + ")");
+            throw new Exception("Failed to parse config file=(" + configFile.toString() + ")");
         }
 
         return config;
