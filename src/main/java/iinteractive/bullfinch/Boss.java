@@ -54,7 +54,6 @@ public class Boss {
 		}
 
 		try {
-			@SuppressWarnings("unchecked")
 			Boss boss = new Boss();
 
 			@SuppressWarnings("unchecked")
