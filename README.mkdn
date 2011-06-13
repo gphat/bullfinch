@@ -1,0 +1,24 @@
+# NAME
+
+Bullfinch
+
+# DESCRIPTION
+
+Bullfinch is a worker queue that uses kestrel as a medium for storage.
+Bullfinch spins up worker threads that monitor and respond to messages in
+kestrel queues.
+
+# CONTRIBUTORS
+
+Stevan Little
+
+# AUTHOR
+
+Cory G Watson <cory.watson@iinteractive.com>
+
+# COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2011 by Infinity Interactive.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.

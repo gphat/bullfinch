@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="kestrel-workers" default="compile" basedir=".">
+<project name="bullfinch" default="compile" basedir=".">
 
  <property name="build" value="build" />
  <property name="libs" value="libs" />

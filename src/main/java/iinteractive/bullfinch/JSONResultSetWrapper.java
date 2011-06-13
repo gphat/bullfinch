@@ -1,4 +1,4 @@
-package iinteractive.kestrel.workers;
+package iinteractive.bullfinch;
 
 import java.sql.Date;
 import java.sql.ResultSet;

@@ -1,4 +1,4 @@
-package iinteractive.kestrel.workers;
+package iinteractive.bullfinch;
 
 import iinteractive.kestrel.Client;
 
