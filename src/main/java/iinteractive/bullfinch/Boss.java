@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,7 @@ public class Boss {
 			return;
 		}
 
-		JSONArray config;
+		JSONObject config;
 		try {
 			config = readConfigFile(configFile);
 
@@ -53,18 +54,26 @@ public class Boss {
 			return;
 		}
 
+		if(config == null) {
+			logger.error("Failed to load config file.");
+			return;
+		}
+
 		try {
 			Boss boss = new Boss();
 
+			JSONArray workerList = (JSONArray) config.get("workers");
+			if(workerList == null) {
+				throw new Exception("Need a list of workers in the config file.");
+			}
+
 			@SuppressWarnings("unchecked")
-			Iterator<HashMap<String,Object>> workers = config.iterator();
+			Iterator<HashMap<String,Object>> workers = workerList.iterator();
 
 			// The config has at least one worker in it, so we'll treat iterate
 			// over the workers and spin off each one in turn.
 			while(workers.hasNext()) {
-				HashMap<String,Object> worker = (HashMap<String,Object>) workers.next();
-				@SuppressWarnings("unchecked")
-				HashMap<String,Object> workerConfig = (HashMap<String,Object>) worker.get("worker_config");
+				HashMap<String,Object> workerConfig = (HashMap<String,Object>) workers.next();
 				boss.prepare(workerConfig);
 			}
 
@@ -84,6 +93,7 @@ public class Boss {
 	 */
 	public Boss() {
 
+		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
 	}
 
 	public void prepare(HashMap<String,Object> workConfig) throws Exception {
@@ -130,7 +140,7 @@ public class Boss {
 
 		// Get the config options to pass to the worker
 		@SuppressWarnings("unchecked")
-		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("worker_config");
+		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
 
 		if(workerConfig == null) {
 			throw new Exception("Each worker must have a worker_config!");
@@ -199,14 +209,16 @@ public class Boss {
 	 * @throws FileNotFoundException
 	 * @throws IOException
 	 */
-	private static JSONArray readConfigFile(URL configFile)
+	private static JSONObject readConfigFile(URL configFile)
 		throws Exception, FileNotFoundException, IOException {
 
-		JSONArray config;
+		logger.debug("Attempting to read " + configFile.toString());
+
+		JSONObject config;
         try {
             JSONParser parser = new JSONParser();
 
-            config = (JSONArray) parser.parse(
+            config = (JSONObject) parser.parse(
             	new InputStreamReader(configFile.openStream())
             );
         }

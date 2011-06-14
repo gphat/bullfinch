@@ -1,0 +1,29 @@
+{
+    "workers" : [
+        {
+            "name" : "JDBC Worker",
+            "kestrel_host" : "10.0.1.36",
+            "kestrel_port" : 2222,
+            "worker_class" : "iinteractive.bullfinch.JDBCWorker",
+            "worker_count" : 2,
+            "subscribe_to" : "test-net-kestrel",
+            "timeout" : 10000,
+            "options"  : {
+                "connection" : {
+                    "driver" : "com.mysql.jdbc.Driver",
+                    "dsn" : "jdbc:mysql://localhost/labor",
+                    "uid" : "root",
+                },
+                "statements" : {
+                    "getAllAddresses" : {
+                        "sql"    : "SELECT * FROM address",
+                    },
+                    "getAllActiveECodesByPage" : {
+                        "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
+                        "params" : [ "INTEGER", "INTEGER" ]
+                    }
+                }
+            }
+        }
+    ]
+}
