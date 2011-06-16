@@ -61,11 +61,17 @@ public class Minion implements Runnable {
 					logger.debug("Got item from queue:\n" + val);
 					JSONObject request = (JSONObject) parser.parse(new StringReader(val));
 
+					String responseQueue = (String) request.get("response_queue");
+					if(responseQueue == null) {
+						throw new Exception("Requests must contain a response queue!");
+					}
+					logger.debug("Response will go to " + responseQueue);
 
 					Iterator<String> items = this.worker.handle(request);
 					while(items.hasNext()) {
-						this.kestrel.put("response_queue", items.next()); // XXX
+						this.kestrel.put(responseQueue, items.next());
 					}
+					this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
 
 					this.kestrel.confirm(this.queueName, 1);
 				}

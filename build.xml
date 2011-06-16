@@ -65,7 +65,7 @@
  </target>
 
  <target name="jar" depends="compile">
-  <jar destfile="${build}/kestrel-client.jar" basedir="${build}" />
+  <jar destfile="${build}/bullfinch.jar" basedir="${build}" />
  </target>
 
 </project>
