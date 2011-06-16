@@ -13,16 +13,16 @@ kestrel queues.
 Bullfinch uses kestrel-client and therefore only speaks Kestrel's
 **text protocol**.
 
-# HIGH LEVEL OVERVIEW #                                 +----------+
-                                                    /---| Worker A |--+
-Bullfinch works like this:                         /    +-----------  |
-                                 +---------------+/     +----------+  |
-                              /->| Request Queue |----->| Worker B |--+
-  +--------+      +---------+/   +---------------+      +----------+  |
-  | Client |----->| Kestrel |                                         /
-  +--------+      +---------+<   +----------------+                  /
-                              \--| Response Queue |<----------------/
-                                 +----------------+
+# HIGH LEVEL OVERVIEW #                                   +----------+
+                                                      /---| Worker A |--+
+Bullfinch works like this:                           /    +-----------  |
+                                   +---------------+/     +----------+  |
+                                /->| Request Queue |----->| Worker B |--+
+    +--------+      +---------+/   +---------------+      +----------+  |
+    | Client |----->| Kestrel |                                         /
+    +--------+      +---------+<   +----------------+                  /
+                                \--| Response Queue |<----------------/
+                                   +----------------+
 
 Crystal clear, right?
 
