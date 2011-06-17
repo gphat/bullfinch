@@ -8,10 +8,27 @@ Bullfinch is a worker queue that uses kestrel as a medium for storage.
 Bullfinch spins up worker threads that monitor and respond to messages in
 kestrel queues.
 
+1. Client connects to kestrel and puts a json-formatted message into a queue.
+In this message it includes the name of the queue where it will look for a
+response.
+
+2. A worker receives the message, does whatever work it needs to do, and
+puts one or more items into the queue specified by the client.
+
+3. The client pulls the items out and deletes the queue when it gets the EOF
+message.
+
 # NOTE
 
 Bullfinch uses kestrel-client and therefore only speaks Kestrel's
 **text protocol**.
+
+# MOTIVATION
+
+We needed a way to bridge the gap between a new system and a legacy one. We
+have a future use-case for kestrel and wanted to get it into use.  We also
+needed some way to interface with a legacy RDBMS so we wrote Bullinch and the
+JDBCWorker to solve that problem.
 
 # HIGH LEVEL OVERVIEW #
 
@@ -56,6 +73,46 @@ The last record will be followed by an EOF like this:
 Generally speaking, the best idea is for you to DELETE the response queue
 after you encounter the above record.  Since it only exists to satisfy the
 request you specified.
+
+# PERFORMANCE
+
+Kestrel's docs contain benchmarks for some of it's load testing, so look there
+if you are worried about Kestrel.
+
+Bullfinch isn't really written for raw speed, but it does need to be
+reasonably quick. Therefore I present to you this load and burn-in test I did
+to verify Bullfinch would work well for us:
+
+Mac Pro running Net::Kestrel clients talking to a Macbook Pro running Windows
+7 (bootcamp) with kestrel (configured with an Xmx/Xms of 512M) and bullfinch
+(stock VM settings) talking to a MySQL instance back on the Mac Pro.  All
+connected over gigabit ethernet.
+
+(This setup is somewhat complex, but it was the easiest way for me to set
+things up and the customer uses Windows.)
+
+In this configuration I was able to run 2 clients, sending 10,000 requests
+approximately 2 minutes.  This is ~160 req/s.  Each "request" was the
+following dance:
+
+1. Client "puts" request into kestrel
+2. Worker "gets" request from the queue
+3. Worker executes SQL against MySQL
+4. Worker encodes ResultSet as JSON and "puts" each row (3 in test case) into the response queue
+5. Worker "puts" EOF item into queue
+6. Client "gets" each item as they are put into the queue
+6. Client "deletes" the queue when it gets the EOF item
+
+So a lot happens in each of the 160 requests per second.  8 queue operations
+are performed against kestrel (2,560 ops/s), 160 SQL statements are executed,
+480 rows are retrieved and encoded as JSON.
+
+Adding a 3rd client to the mix brought things to a screeching halt.  One client
+timed out, but the other two completed very slowly.  Increasing kestrel to it's
+default Xmx/Xms of 2048m bought things back in line, completing in 3 minutes.
+This told me that ~160req/s was limited by something else.  Perhaps the
+latency of talking to MySQL over the network rather than the local box (which
+is how we'll do it with the real customer).
 
 # CONFIGURATION
 
