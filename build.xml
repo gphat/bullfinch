@@ -65,7 +65,12 @@
  </target>
 
  <target name="jar" depends="compile">
-  <jar destfile="${build}/bullfinch.jar" basedir="${build}" />
+  <exec executable="git" outputproperty="gitversion">
+   <arg value="rev-parse" />
+   <arg value="--short" />
+   <arg value="HEAD" />
+  </exec>
+  <jar destfile="${build}/bullfinch-{$gitversion}.jar" basedir="${build}" />
  </target>
 
 </project>
