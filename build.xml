@@ -70,7 +70,7 @@
    <arg value="--short" />
    <arg value="HEAD" />
   </exec>
-  <jar destfile="${build}/bullfinch-{$gitversion}.jar" basedir="${build}" />
+  <jar destfile="${build}/bullfinch-${gitversion}.jar" basedir="${build}" />
  </target>
 
 </project>
