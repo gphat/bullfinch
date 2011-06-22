@@ -60,7 +60,7 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	        obj.put("row_data", data);
 
 	        int num_columns = metadata.getColumnCount();
-	        for (int i = 1; i < num_columns; i++) {
+	        for (int i = 1; i <= num_columns; i++) {
 
 	            String col_name = metadata.getColumnName(i);
 
