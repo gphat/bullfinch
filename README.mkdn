@@ -217,7 +217,7 @@ connections or kitchen sinks or whathaveyou) should be setup here.
 This method is invoked each time an item from the queue is received and it is
 that instance's turn to handle it.  This method must return an
 `Iterator<String>`.  This allows you to either create a list or create your own
-`Iterator` implementation that actually iterates over something. ;)
+`Iterator` implementation that actually iterates over something.
 
 # CONTRIBUTORS
 
