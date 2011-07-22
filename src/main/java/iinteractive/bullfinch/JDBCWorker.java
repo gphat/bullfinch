@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,10 +110,21 @@ public class JDBCWorker implements Worker {
 	 */
 	public Iterator<String> handle(HashMap<String,Object> request) throws Exception {
 
+		try {
+			ResultSet rs = bindAndExecuteQuery(request);
+			return new JSONResultSetWrapper(rs);
+		} catch(Exception e) {
+			logger.error("Got an exception from SQL execution", e);
+			// In the case of an exception, reply back with an ERROR as the
+			// key and the message as the value.
+			JSONObject obj = new JSONObject();
+			obj.put("ERROR", e.getMessage());
+			ArrayList<String> list = new ArrayList<String>();
+			list.add(obj.toString());
+			return list.iterator();
+		}
 
-		ResultSet rs = bindAndExecuteQuery(request);
 
-		return new JSONResultSetWrapper(rs);
 	}
 
 	/*
