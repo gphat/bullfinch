@@ -159,22 +159,22 @@ public class Boss {
 		try {
 			for(int i = 0; i < workerCount; i++) {
 
-				// Spin up a thread for each worker we were told ot make.
+				// Spin up a thread for each worker we were told to make.
 
-					// Create an instance of a worker.
-					Worker worker = (Worker) Class.forName(workerClass).newInstance();
-					worker.configure(workerConfig);
+				// Create an instance of a worker.
+				Worker worker = (Worker) Class.forName(workerClass).newInstance();
+				worker.configure(workerConfig);
 
-					// Give it it's very own kestrel connection.
-					Client kestrel = new Client(workHost, workPort);
-					kestrel.connect();
+				// Give it it's very own kestrel connection.
+				Client kestrel = new Client(workHost, workPort);
+				kestrel.connect();
 
-					// Create the thread.
-					Runnable workerInstance = new Minion(kestrel, queue, worker, timeout);
-					Thread workerThread = new Thread(tgroup, workerInstance);
-					workerThreads.add(workerThread);
+				// Create the thread.
+				Runnable workerInstance = new Minion(kestrel, queue, worker, timeout);
+				Thread workerThread = new Thread(tgroup, workerInstance);
+				workerThreads.add(workerThread);
 
-					logger.debug("Readied thread (" + tgroup.getName() + "): " + i);
+				logger.debug("Readied thread (" + tgroup.getName() + "): " + i);
 			}
 
 			this.minionGroups.put(tgroup.getName(), workerThreads);
