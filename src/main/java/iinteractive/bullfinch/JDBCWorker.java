@@ -85,9 +85,6 @@ public class JDBCWorker implements Worker {
 		}
 
 		this.password = connConfig.get("pwd");
-		if(this.password == null) {
-			throw new Exception("Configuration needs a connection -> password");
-		}
 
 		this.validationQuery = connConfig.get("validation");
 		if(this.validationQuery == null) {
@@ -140,8 +137,19 @@ public class JDBCWorker implements Worker {
 	public Iterator<String> handle(HashMap<String,Object> request) throws Exception {
 
 		try {
-			ResultSet rs = bindAndExecuteQuery(request);
-			return new JSONResultSetWrapper(rs);
+			// Grab a connection from the pool
+			Connection conn = this.ds.getConnection();
+
+			// Get the resultset back and transfer it's content into a list so
+			// that we can return an iterator AFTER closing the connection.
+			ResultSet rs = bindAndExecuteQuery(conn, request);
+			ArrayList<String> list = new ArrayList<String>();
+			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(rs);
+			while(wrapper.hasNext()) {
+				list.add(wrapper.next());
+			}
+			conn.close();
+			return list.iterator();
 		} catch(Exception e) {
 			logger.error("Got an exception from SQL execution", e);
 			// In the case of an exception, reply back with an ERROR as the
@@ -165,6 +173,7 @@ public class JDBCWorker implements Worker {
 		ds.setMaxActive(1);
 		ds.setMaxIdle(1);
 		ds.setTestOnBorrow(true);
+		ds.setPoolPreparedStatements(true);
 		ds.setValidationQuery(this.validationQuery);
 
 		ds.setDriverClassName(this.driver);
@@ -177,7 +186,7 @@ public class JDBCWorker implements Worker {
 	/*
 	 * Find the query and execute it it.
 	 */
-	private ResultSet bindAndExecuteQuery(HashMap<String,Object> request) throws Exception {
+	private ResultSet bindAndExecuteQuery(Connection conn, HashMap<String,Object> request) throws Exception {
 
 		// Verify the requested statement exists
 		String stmt = (String) request.get("statement");
@@ -186,8 +195,6 @@ public class JDBCWorker implements Worker {
 			throw new Exception("Unknown statement " + stmt);
 		}
 
-		// Grab a connection from the pool and prepare the statement.
-		Connection conn = this.ds.getConnection();
 		PreparedStatement prepStatement = conn.prepareStatement(statement);
 
 		@SuppressWarnings("unchecked")
