@@ -29,7 +29,7 @@ public class JDBCWorker implements Worker {
 	private String driver;
 	private String dsn;
 	private String username;
-	private String passsword;
+	private String password;
 	private String validationQuery;
 
 	private BasicDataSource ds;
@@ -70,10 +70,29 @@ public class JDBCWorker implements Worker {
 		}
 
 		this.driver = connConfig.get("driver");
+		if(this.driver == null) {
+			throw new Exception("Configuration needs a connection -> driver");
+		}
+
 		this.dsn = connConfig.get("dsn");
+		if(this.dsn == null) {
+			throw new Exception("Configuration needs a connection -> dsn");
+		}
+
 		this.username = connConfig.get("uid");
-		this.passsword = connConfig.get("pwd");
+		if(this.username == null) {
+			throw new Exception("Configuration needs a connection -> username");
+		}
+
+		this.password = connConfig.get("pwd");
+		if(this.password == null) {
+			throw new Exception("Configuration needs a connection -> password");
+		}
+
 		this.validationQuery = connConfig.get("validation");
+		if(this.validationQuery == null) {
+			throw new Exception("Configuration needs a connection -> validation");
+		}
 
 		// Setup our connection pool
 		this.ds = connect();
@@ -150,7 +169,7 @@ public class JDBCWorker implements Worker {
 
 		ds.setDriverClassName(this.driver);
 		ds.setUsername(this.username);
-		ds.setPassword(this.passsword);
+		ds.setPassword(this.password);
 		ds.setUrl(this.dsn);
 		return ds;
 	}
