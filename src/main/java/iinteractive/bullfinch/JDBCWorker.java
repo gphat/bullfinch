@@ -1,13 +1,13 @@
 package iinteractive.bullfinch;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import org.apache.commons.dbcp.BasicDataSource;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +25,16 @@ public class JDBCWorker implements Worker {
     }
 
 	static Logger logger = LoggerFactory.getLogger(JDBCWorker.class);
-	private Connection conn;
 
-	private HashMap<String,PreparedStatement> statementMap;
+	private String driver;
+	private String dsn;
+	private String username;
+	private String passsword;
+	private String validationQuery;
+
+	private BasicDataSource ds;
+
+	private HashMap<String,String> statementMap;
 	private HashMap<String,ArrayList<String>> paramMap;
 
 
@@ -62,14 +69,17 @@ public class JDBCWorker implements Worker {
 			throw new Exception("Configuration needs a 'connection' section");
 		}
 
-		// Make the database connection
-		Class.forName(connConfig.get("driver")).newInstance();
-		this.conn = DriverManager.getConnection(
-			connConfig.get("dsn"), connConfig.get("uid"), connConfig.get("pwd")
-		);
+		this.driver = connConfig.get("driver");
+		this.dsn = connConfig.get("dsn");
+		this.username = connConfig.get("uid");
+		this.passsword = connConfig.get("pwd");
+		this.validationQuery = connConfig.get("validation");
+
+		// Setup our connection pool
+		this.ds = connect();
 
 		// Create some empty maps
-		this.statementMap = new HashMap<String,PreparedStatement>();
+		this.statementMap = new HashMap<String,String>();
 		this.paramMap = new HashMap<String,ArrayList<String>>();
 
 		// Get the statement config
@@ -91,7 +101,7 @@ public class JDBCWorker implements Worker {
 			// Prepare the statement here so we can benefit from it being ready
 			// to go later.
 			String stmt = (String) stmtInfo.get("sql");
-			this.statementMap.put(key, conn.prepareStatement(stmt));
+			this.statementMap.put(key, stmt);
 
 			// If the statement has params, stuff them into a param map
 			if(stmtInfo.containsKey("params")) {
@@ -123,8 +133,26 @@ public class JDBCWorker implements Worker {
 			list.add(obj.toString());
 			return list.iterator();
 		}
+	}
 
+	private BasicDataSource connect() throws Exception {
 
+		// Not going to try anything fancy here.  If this fails, then
+		// the exception will bubble all the way up.
+		BasicDataSource ds = new BasicDataSource();
+
+		// Only allow one connection, as we're not really using this for the
+		// pooling so much as the connection verification and whatnot.
+		ds.setMaxActive(1);
+		ds.setMaxIdle(1);
+		ds.setTestOnBorrow(true);
+		ds.setValidationQuery(this.validationQuery);
+
+		ds.setDriverClassName(this.driver);
+		ds.setUsername(this.username);
+		ds.setPassword(this.passsword);
+		ds.setUrl(this.dsn);
+		return ds;
 	}
 
 	/*
@@ -134,10 +162,14 @@ public class JDBCWorker implements Worker {
 
 		// Verify the requested statement exists
 		String stmt = (String) request.get("statement");
-		PreparedStatement prepStatement = this.statementMap.get(stmt);
-		if(prepStatement == null) {
+		String statement = this.statementMap.get(stmt);
+		if(statement == null) {
 			throw new Exception("Unknown statement " + stmt);
 		}
+
+		// Grab a connection from the pool and prepare the statement.
+		Connection conn = this.ds.getConnection();
+		PreparedStatement prepStatement = conn.prepareStatement(statement);
 
 		@SuppressWarnings("unchecked")
 		ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
