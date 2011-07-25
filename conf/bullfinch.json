@@ -13,6 +13,7 @@
                     "driver" : "com.mysql.jdbc.Driver",
                     "dsn" : "jdbc:mysql://localhost/labor",
                     "uid" : "root",
+                    "validation" : "SELECT version()"
                 },
                 "statements" : {
                     "getAllAddresses" : {
