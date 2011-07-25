@@ -219,6 +219,34 @@ that instance's turn to handle it.  This method must return an
 `Iterator<String>`.  This allows you to either create a list or create your own
 `Iterator` implementation that actually iterates over something.
 
+# JDBCWorker #
+
+The JDBC worker expects a config like this:
+
+    "options"  : {
+        "connection" : {
+            "driver" : "com.mysql.jdbc.Driver",
+            "dsn" : "jdbc:mysql://localhost/labor",
+            "uid" : "root",
+            "validation" : "SELECT version()"
+        },
+        "statements" : {
+            "getAllAddresses" : {
+                "sql"    : "SELECT * FROM address",
+            },
+            "getAllActiveECodesByPage" : {
+                "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
+                "params" : [ "INTEGER", "INTEGER" ]
+            }
+        }
+    }
+
+## validation
+
+All of these config options are pretty obvious, except for the `validation`
+one.  This is the text of a statement used to verify that the connection is
+active.  Please replace this with something that makes sense for your RDBMS.
+
 # CONTRIBUTORS
 
 Stevan Little
