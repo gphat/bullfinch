@@ -6,6 +6,7 @@
  <property name="libs.test" value="testlibs" />
  <property name="src" value="src/main/java" />
  <property name="src.tests" value="src/test/java" />
+ <property name="temp" value="tmp" />
 
  <path id="classpath">
   <fileset dir="${libs}">
@@ -19,6 +20,7 @@
 
  <target name="clean">
   <delete dir="${build}"/>
+  <delete dir="${temp}"/>
  </target>
 
  <target name="init" depends="clean">
