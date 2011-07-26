@@ -37,6 +37,10 @@ public class Simple {
 			stAddOne.execute("INSERT INTO PUBLIC.TEST_TABLE (an_int, a_float, a_bool, a_string) VALUES (12, 3.14, true, 'cory')");
 			stAddOne.close();
 
+			Statement stAddTwo = conn.createStatement();
+			stAddTwo.execute("INSERT INTO PUBLIC.TEST_TABLE (an_int, a_float, a_bool, a_string) VALUES (13, 2.14, false, 'cory')");
+			stAddTwo.close();
+
 			this.conn = conn;
 
 			HashMap<String,String> connection = new HashMap<String,String>();
@@ -189,6 +193,7 @@ public class Simple {
 
 			Iterator<String> iter = worker.handle(request);
 			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":1}", iter.next());
+			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":2}", iter.next());
 			assertFalse("no more rows", iter.hasNext());
 
 		} catch(Exception e) {
