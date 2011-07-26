@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 public class JDBCWorker implements Worker {
 
     public enum ParamTypes {
-        STRING, INTEGER, BOOLEAN
+        BOOLEAN, NUMBER, INTEGER, STRING
     }
 
 	static Logger logger = LoggerFactory.getLogger(JDBCWorker.class);
@@ -189,22 +189,22 @@ public class JDBCWorker implements Worker {
 	private ResultSet bindAndExecuteQuery(Connection conn, HashMap<String,Object> request) throws Exception {
 
 		// Verify the requested statement exists
-		String stmt = (String) request.get("statement");
-		String statement = this.statementMap.get(stmt);
+		String name = (String) request.get("statement");
+		String statement = this.statementMap.get(name);
 		if(statement == null) {
-			throw new Exception("Unknown statement " + stmt);
+			throw new Exception("Unknown statement " + name);
 		}
 
 		PreparedStatement prepStatement = conn.prepareStatement(statement);
 
 		@SuppressWarnings("unchecked")
 		ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
-		ArrayList<String> reqParams = this.paramMap.get(stmt);
+		ArrayList<String> reqParams = this.paramMap.get(name);
 		if(reqParams != null) {
 
 			// Verify we have params if they are needed
 			if(rparams == null) {
-				throw new Exception("Statement " + stmt + " requires params");
+				throw new Exception("Statement " + name + " requires params");
 			}
 			if(rparams.size() != reqParams.size()) {
 				throw new Exception("Statement expects " + reqParams.size() + " but was given " + rparams.size());
@@ -213,14 +213,17 @@ public class JDBCWorker implements Worker {
 			for(int i = 0; i < reqParams.size(); i++) {
                 String paramType = (String) reqParams.get(i);
                 switch ( ParamTypes.valueOf( paramType ) ) {
-                    case INTEGER :
+	                case BOOLEAN :
+	                    prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());
+	                    break;
+	                case NUMBER :
+	                	prepStatement.setDouble(i + 1, ((Number) rparams.get(i)).doubleValue());
+	                	break;
+	                case INTEGER :
                         prepStatement.setInt(i + 1, ((Long) rparams.get(i)).intValue() );
                         break;
                     case STRING :
                         prepStatement.setString(i + 1, (String) rparams.get(i));
-                        break;
-                    case BOOLEAN :
-                        prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());
                         break;
                     default :
                         throw new Exception ("Don't understand param-type '" + paramType + "'");
