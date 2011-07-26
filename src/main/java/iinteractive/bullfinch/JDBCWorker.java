@@ -123,6 +123,10 @@ public class JDBCWorker implements Worker {
 			if(stmtInfo.containsKey("params")) {
 				@SuppressWarnings("unchecked")
 				ArrayList<String> pList = (ArrayList<String>) stmtInfo.get("params");
+				if(pList.size() < 1) {
+					logger.warn("statement claims params, but lists none!");
+				}
+				logger.debug("Statement has " + pList.size() + " params");
 				this.paramMap.put(key, pList);
 			}
 		}
