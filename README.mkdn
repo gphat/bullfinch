@@ -241,6 +241,18 @@ The JDBC worker expects a config like this:
         }
     }
 
+## TYPES
+
+The JDBC worker only understands certain types because it's using JSON.  You can use the
+following types as params for your queries:
+
+* BOOLEAN
+* INTEGER
+* NUMBER
+* STRING
+
+Note that Number is a double in Javaland, so use it for non-integer stuff.
+
 ## validation
 
 All of these config options are pretty obvious, except for the `validation`
