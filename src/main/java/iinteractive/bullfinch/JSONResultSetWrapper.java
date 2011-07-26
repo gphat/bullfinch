@@ -16,10 +16,24 @@ public class JSONResultSetWrapper implements Iterator<String> {
 
 	static Logger logger = LoggerFactory.getLogger(JSONResultSetWrapper.class);
 	private ResultSet resultSet;
+	private ResultSetMetaData metadata;
+	private String[] columnNames;
+	private int[] columnTypes;
+	private int columnCount;
 
-	public JSONResultSetWrapper(ResultSet rs) {
+	public JSONResultSetWrapper(ResultSet rs) throws SQLException {
 
 		this.resultSet = rs;
+		this.metadata = rs.getMetaData();
+		this.columnCount = this.metadata.getColumnCount();
+
+		// Setup an array of names and types, using the rowCount size
+		this.columnNames = new String[this.columnCount];
+		this.columnTypes = new int[this.columnCount];
+		for (int i = 0; i < this.columnCount; i++) {
+			columnNames[i] = metadata.getColumnName(i + 1);
+			columnTypes[i] = metadata.getColumnType(i + 1);
+		}
 	}
 
 	/**
@@ -29,9 +43,12 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	@Override
 	public boolean hasNext() {
 
+
 		boolean hasMore = false;
 		try {
-			hasMore = this.resultSet.next();
+			// If this isn't the last one, then we are ok. When isLast is true,
+			// this will return false.
+			hasMore = !this.resultSet.isLast();
 		} catch(SQLException e) {
 			// We'll complain, but otherwise we'll return a false, can't do
 			// much about it here.
@@ -52,19 +69,18 @@ public class JSONResultSetWrapper implements Iterator<String> {
 		JSONObject obj = new JSONObject();
 
 		try {
-	        ResultSetMetaData metadata = resultSet.getMetaData();
+			this.resultSet.next();
 
-	        obj.put("row_num", new Integer(resultSet.getRow()));
+			obj.put("row_num", new Integer(resultSet.getRow()));
 
 	        JSONObject data = new JSONObject();
 	        obj.put("row_data", data);
 
-	        int num_columns = metadata.getColumnCount();
-	        for (int i = 1; i <= num_columns; i++) {
+	        for (int i = 1; i <= this.columnCount; i++) {
 
-	            String col_name = metadata.getColumnName(i);
+	            String col_name = this.columnNames[i - 1];
 
-	            switch (metadata.getColumnType(i)) {
+	            switch (this.columnTypes[i - 1]) {
 	                case Types.CHAR        :
 	                case Types.VARCHAR     :
 	                case Types.LONGVARCHAR :
@@ -86,10 +102,10 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	                case Types.BIGINT :
 	                    data.put(col_name, new Long(resultSet.getLong(i)));
 	                    break;
-	                case Types.REAL :
-	                    data.put(col_name, new Float(resultSet.getFloat(i)));
-	                    break;
-	                case Types.FLOAT  :
+	                case Types.REAL	:
+	                case Types.FLOAT:
+	                	data.put(col_name, new Float(resultSet.getFloat(i)));
+	                	break;
 	                case Types.DOUBLE :
 	                    data.put(col_name, new Double(resultSet.getDouble(i)));
 	                    break;
