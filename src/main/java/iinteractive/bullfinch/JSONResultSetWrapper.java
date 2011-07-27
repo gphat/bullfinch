@@ -21,6 +21,7 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	private int[] columnTypes;
 	private int columnCount;
 
+
 	public JSONResultSetWrapper(ResultSet rs) throws SQLException {
 
 		this.resultSet = rs;
@@ -38,17 +39,16 @@ public class JSONResultSetWrapper implements Iterator<String> {
 
 	/**
 	 * Returns true if this iterator has more values.  Also advances the
-	 * ResultSet, so always use this!
+	 * ResultSet, so always use this!  This is horrible, but it works. - CGW
 	 */
 	@Override
 	public boolean hasNext() {
-
 
 		boolean hasMore = false;
 		try {
 			// If this isn't the last one, then we are ok. When isLast is true,
 			// this will return false.
-			hasMore = !this.resultSet.isLast();
+			hasMore = this.resultSet.next();
 		} catch(SQLException e) {
 			// We'll complain, but otherwise we'll return a false, can't do
 			// much about it here.
@@ -69,7 +69,7 @@ public class JSONResultSetWrapper implements Iterator<String> {
 		JSONObject obj = new JSONObject();
 
 		try {
-			this.resultSet.next();
+
 
 			obj.put("row_num", new Integer(resultSet.getRow()));
 
