@@ -23,6 +23,11 @@
                         "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
                         "params" : [ "INTEGER", "INTEGER" ]
                     }
+                },
+                "procedures" : {
+                    "foo" : {
+                        "params": [ "INTEGER" ],
+                    }
                 }
             }
         }

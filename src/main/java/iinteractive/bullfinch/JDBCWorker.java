@@ -35,7 +35,9 @@ public class JDBCWorker implements Worker {
 	private BasicDataSource ds;
 
 	private HashMap<String,String> statementMap;
-	private HashMap<String,ArrayList<String>> paramMap;
+	private HashMap<String,ArrayList<String>> statementParamMap;
+
+	private HashMap<String,ArrayList<String>> procedureParamMap;
 
 
 	public JDBCWorker() {
@@ -96,38 +98,62 @@ public class JDBCWorker implements Worker {
 
 		// Create some empty maps
 		this.statementMap = new HashMap<String,String>();
-		this.paramMap = new HashMap<String,ArrayList<String>>();
+		this.statementParamMap = new HashMap<String,ArrayList<String>>();
+		this.procedureParamMap = new HashMap<String,ArrayList<String>>();
 
 		// Get the statement config
 		@SuppressWarnings("unchecked")
 		HashMap<String,HashMap<String,Object>> statements = (HashMap<String,HashMap<String,Object>>) config.get("statements");
-		if(statements == null) {
-			throw new Exception("Configuration needs a 'statements' section");
+
+		if(statements != null) {
+			// Iterate over each statement and prepare it, optionally storing it's
+			// parameters as well.
+			Iterator<String> keys = statements.keySet().iterator();
+			while(keys.hasNext()) {
+				String key = keys.next();
+				logger.debug("Loading statement information for " + key);
+				// Get the { sql , [ params ] } bits
+				HashMap<String,Object> stmtInfo = statements.get(key);
+
+				// Prepare the statement here so we can benefit from it being ready
+				// to go later.
+				String stmt = (String) stmtInfo.get("sql");
+				this.statementMap.put(key, stmt);
+
+				// If the statement has params, stuff them into a param map
+				if(stmtInfo.containsKey("params")) {
+					@SuppressWarnings("unchecked")
+					ArrayList<String> pList = (ArrayList<String>) stmtInfo.get("params");
+					if(pList.size() < 1) {
+						logger.warn("statement claims params, but lists none!");
+					}
+					logger.debug("Statement has " + pList.size() + " params");
+					this.statementParamMap.put(key, pList);
+				}
+			}
 		}
 
-		// Iterate over each statement and prepare it, optionally storing it's
-		// parameters as well.
-		Iterator<String> keys = statements.keySet().iterator();
-		while(keys.hasNext()) {
-			String key = keys.next();
-			logger.debug("Loading statement information for " + key);
-			// Get the { sql , [ params ] } bits
-			HashMap<String,Object> stmtInfo = statements.get(key);
+		@SuppressWarnings("unchecked")
+		HashMap<String,HashMap<String,Object>> procedures = (HashMap<String,HashMap<String,Object>>) config.get("procedures");
 
-			// Prepare the statement here so we can benefit from it being ready
-			// to go later.
-			String stmt = (String) stmtInfo.get("sql");
-			this.statementMap.put(key, stmt);
+		if(procedures != null) {
+			// Iterate over each procedure and prepare it, optionally storing it's
+			// parameters as well.
+			Iterator<String> keys = procedures.keySet().iterator();
+			while(keys.hasNext()) {
+				String name = keys.next();
+				logger.debug("Loading procedure information for " + name);
+				HashMap<String,Object> procInfo = procedures.get(name);
 
-			// If the statement has params, stuff them into a param map
-			if(stmtInfo.containsKey("params")) {
-				@SuppressWarnings("unchecked")
-				ArrayList<String> pList = (ArrayList<String>) stmtInfo.get("params");
-				if(pList.size() < 1) {
-					logger.warn("statement claims params, but lists none!");
+				if(procInfo.containsKey("params")) {
+					@SuppressWarnings("unchecked")
+					ArrayList<String> pList = (ArrayList<String>) procInfo.get("params");
+					if(pList.size() < 1) {
+						logger.warn("procedure claims params, but lists none!");
+					}
+					logger.debug("Procedure has " + pList.size() + " params");
+					this.procedureParamMap.put(name, pList);
 				}
-				logger.debug("Statement has " + pList.size() + " params");
-				this.paramMap.put(key, pList);
 			}
 		}
 	}
@@ -203,7 +229,7 @@ public class JDBCWorker implements Worker {
 
 		@SuppressWarnings("unchecked")
 		ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
-		ArrayList<String> reqParams = this.paramMap.get(name);
+		ArrayList<String> reqParams = this.statementParamMap.get(name);
 		if(reqParams != null) {
 
 			// Verify we have params if they are needed
