@@ -140,6 +140,20 @@ public class Boss {
 		}
 		int timeout = timeoutLng.intValue();
 
+		Long retryTimeLng = (Long) workConfig.get("retry_time");
+		if(retryTimeLng == null) {
+			logger.info("No retry_time specified, defaulting to 20 seconds.");
+			retryTimeLng = new Long(20);
+		}
+		int retryTime = retryTimeLng.intValue();
+
+		Long retryAttemptsLng = (Long) workConfig.get("retry_attempts");
+		if(retryAttemptsLng == null) {
+			logger.info("No retry_attempts specified, defaulting to 5.");
+			retryAttemptsLng = new Long(5);
+		}
+		int retryAttempts = retryAttemptsLng.intValue();
+
 		// Get the config options to pass to the worker
 		@SuppressWarnings("unchecked")
 		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
@@ -170,7 +184,9 @@ public class Boss {
 				kestrel.connect();
 
 				// Create the thread.
-				Runnable workerInstance = new Minion(kestrel, queue, worker, timeout);
+				Minion workerInstance = new Minion(
+					kestrel, queue, worker, timeout, retryTime, retryAttempts
+				);
 				Thread workerThread = new Thread(tgroup, workerInstance);
 				workerThreads.add(workerThread);
 
