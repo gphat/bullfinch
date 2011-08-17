@@ -64,10 +64,6 @@ public class Minion implements Runnable {
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		if(myThread == null) {
-			return; // We got stopped before we started.
-		}
-
 		while(true) {
 
 			int retries = 0;
