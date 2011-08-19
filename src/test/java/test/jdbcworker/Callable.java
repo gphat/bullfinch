@@ -2,6 +2,7 @@ package test.jdbcworker;
 
 import static org.junit.Assert.fail;
 import iinteractive.bullfinch.JDBCWorker;
+import iinteractive.bullfinch.Phrasebook.ParamTypes;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -40,8 +41,8 @@ public class Callable {
 			HashMap<String,HashMap<String,Object>> procedures = new HashMap<String,HashMap<String,Object>>();
 
 			HashMap<String,Object> getString = new HashMap<String,Object>();
-			ArrayList<String> getStringParams = new ArrayList<String>();
-			getStringParams.add("NUMBER");
+			ArrayList<ParamTypes> getStringParams = new ArrayList<ParamTypes>();
+			getStringParams.add(ParamTypes.NUMBER);
 			getString.put("params", getStringParams);
 			procedures.put("ABS", getString);
 

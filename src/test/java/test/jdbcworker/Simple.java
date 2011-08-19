@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 import iinteractive.bullfinch.JDBCWorker;
+import iinteractive.bullfinch.Phrasebook.ParamTypes;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -53,29 +54,29 @@ public class Simple {
 
 			HashMap<String,Object> getInt = new HashMap<String,Object>();
 			getInt.put("sql", "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?");
-			ArrayList<String> getIntParams = new ArrayList<String>();
-			getIntParams.add("INTEGER");
+			ArrayList<ParamTypes> getIntParams = new ArrayList<ParamTypes>();
+			getIntParams.add(ParamTypes.INTEGER);
 			getInt.put("params", getIntParams);
 			statements.put("getInt", getInt);
 
 			HashMap<String,Object> getFloat = new HashMap<String,Object>();
 			getFloat.put("sql", "SELECT a_float FROM PUBLIC.TEST_TABLE WHERE a_float=?");
-			ArrayList<String> getFloatParams = new ArrayList<String>();
-			getFloatParams.add("NUMBER");
+			ArrayList<ParamTypes> getFloatParams = new ArrayList<ParamTypes>();
+			getFloatParams.add(ParamTypes.NUMBER);
 			getFloat.put("params", getFloatParams);
 			statements.put("getFloat", getFloat);
 
 			HashMap<String,Object> getBool = new HashMap<String,Object>();
 			getBool.put("sql", "SELECT a_bool FROM PUBLIC.TEST_TABLE WHERE a_bool=?");
-			ArrayList<String> getBoolParams = new ArrayList<String>();
-			getBoolParams.add("BOOLEAN");
+			ArrayList<ParamTypes> getBoolParams = new ArrayList<ParamTypes>();
+			getBoolParams.add(ParamTypes.BOOLEAN);
 			getBool.put("params", getBoolParams);
 			statements.put("getBool", getBool);
 
 			HashMap<String,Object> getString = new HashMap<String,Object>();
 			getString.put("sql", "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?");
-			ArrayList<String> getStringParams = new ArrayList<String>();
-			getStringParams.add("STRING");
+			ArrayList<ParamTypes> getStringParams = new ArrayList<ParamTypes>();
+			getStringParams.add(ParamTypes.STRING);
 			getString.put("params", getStringParams);
 			statements.put("getString", getString);
 

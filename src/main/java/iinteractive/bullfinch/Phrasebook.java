@@ -56,7 +56,7 @@ public class Phrasebook {
 	 * @param name	The name of the phrase
 	 * @return The list of params, which may be null
 	 */
-	public List<ParamTypes> getPhraseParams(String name) {
+	public List<ParamTypes> getParams(String name) {
 
 		return this.phraseParamMap.get(name);
 	}

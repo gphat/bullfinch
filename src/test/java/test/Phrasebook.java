@@ -27,7 +27,7 @@ public class Phrasebook {
 
 		assertEquals("getPhrase", "select foo from dual", this.book.getPhrase("foo"));
 
-		List<ParamTypes> params = book.getPhraseParams("foo");
+		List<ParamTypes> params = book.getParams("foo");
 		assertTrue("Got null params", params == null);
 	}
 
@@ -41,7 +41,7 @@ public class Phrasebook {
 
 		assertEquals("getPhrase", "select foo from dual where bar=?", this.book.getPhrase("foo"));
 
-		List<ParamTypes> ps = book.getPhraseParams("foo");
+		List<ParamTypes> ps = book.getParams("foo");
 		assertTrue("Got params", ps != null);
 		assertTrue("Got 1 param", ps.size() == 1);
 		assertTrue("Got correct param", ps.get(0) == ParamTypes.STRING);

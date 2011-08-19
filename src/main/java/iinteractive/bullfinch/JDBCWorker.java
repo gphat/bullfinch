@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.json.simple.JSONObject;
@@ -30,16 +31,15 @@ public class JDBCWorker implements Worker {
 	private String password;
 	private String validationQuery;
 
+	private Phrasebook statementBook;
+	private Phrasebook procedureBook;
+
 	private BasicDataSource ds;
-
-	private HashMap<String,String> statementMap;
-	private HashMap<String,ArrayList<String>> statementParamMap;
-
-	private HashMap<String,ArrayList<String>> procedureParamMap;
-
 
 	public JDBCWorker() {
 
+		this.statementBook = new Phrasebook();
+		this.procedureBook= new Phrasebook();
 	}
 
 	/**
@@ -94,11 +94,6 @@ public class JDBCWorker implements Worker {
 		// Setup our connection pool
 		this.ds = connect();
 
-		// Create some empty maps
-		this.statementMap = new HashMap<String,String>();
-		this.statementParamMap = new HashMap<String,ArrayList<String>>();
-		this.procedureParamMap = new HashMap<String,ArrayList<String>>();
-
 		// Get the statement config
 		@SuppressWarnings("unchecked")
 		HashMap<String,HashMap<String,Object>> statements = (HashMap<String,HashMap<String,Object>>) config.get("statements");
@@ -116,17 +111,18 @@ public class JDBCWorker implements Worker {
 				// Prepare the statement here so we can benefit from it being ready
 				// to go later.
 				String stmt = (String) stmtInfo.get("sql");
-				this.statementMap.put(key, stmt);
 
 				// If the statement has params, stuff them into a param map
 				if(stmtInfo.containsKey("params")) {
 					@SuppressWarnings("unchecked")
-					ArrayList<String> pList = (ArrayList<String>) stmtInfo.get("params");
+					ArrayList<ParamTypes> pList = (ArrayList<ParamTypes>) stmtInfo.get("params");
 					if(pList.size() < 1) {
 						logger.warn("statement claims params, but lists none!");
 					}
 					logger.debug("Statement has " + pList.size() + " params");
-					this.statementParamMap.put(key, pList);
+					this.statementBook.addPhrase(key, stmt, pList);
+				} else {
+					this.statementBook.addPhrase(key, stmt);
 				}
 			}
 		}
@@ -145,12 +141,12 @@ public class JDBCWorker implements Worker {
 
 				if(procInfo.containsKey("params")) {
 					@SuppressWarnings("unchecked")
-					ArrayList<String> pList = (ArrayList<String>) procInfo.get("params");
+					ArrayList<ParamTypes> pList = (ArrayList<ParamTypes>) procInfo.get("params");
 					if(pList.size() < 1) {
 						logger.warn("procedure claims params, but lists none!");
 					}
 					logger.debug("Procedure has " + pList.size() + " params");
-					this.procedureParamMap.put(name, pList);
+					this.procedureBook.addPhrase(name, name, pList);
 				}
 			}
 		}
@@ -218,7 +214,7 @@ public class JDBCWorker implements Worker {
 
 		// Verify the requested statement exists
 		String name = (String) request.get("statement");
-		String statement = this.statementMap.get(name);
+		String statement = this.statementBook.getPhrase(name);
 		if(statement == null) {
 			throw new Exception("Unknown statement " + name);
 		}
@@ -227,7 +223,7 @@ public class JDBCWorker implements Worker {
 
 		@SuppressWarnings("unchecked")
 		ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
-		ArrayList<String> reqParams = this.statementParamMap.get(name);
+		List<ParamTypes> reqParams = this.statementBook.getParams(name);
 		if(reqParams != null) {
 
 			// Verify we have params if they are needed
@@ -239,8 +235,8 @@ public class JDBCWorker implements Worker {
 			}
 
 			for(int i = 0; i < reqParams.size(); i++) {
-                String paramType = (String) reqParams.get(i);
-                switch ( ParamTypes.valueOf( paramType ) ) {
+                ParamTypes paramType = reqParams.get(i);
+                switch ( paramType ) {
 	                case BOOLEAN :
 	                    prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());
 	                    break;
