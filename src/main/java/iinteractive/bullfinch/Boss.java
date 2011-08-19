@@ -64,16 +64,9 @@ public class Boss {
 	 *
 	 * @param config Configuration (as a hashmap)
 	 */
-	public Boss(URL configFile) throws ConfigurationException {
+	public Boss(URL configFile) throws ConfigurationException, FileNotFoundException, IOException {
 
-		JSONObject config;
-		try {
-			config = readConfigFile(configFile);
-
-		} catch(Exception e) {
-			logger.error("Failed to parse config file", e);
-			return;
-		}
+		JSONObject config = readConfigFile(configFile);
 
 		if(config == null) {
 			logger.error("Failed to load config file.");
@@ -100,7 +93,7 @@ public class Boss {
 		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
 	}
 
-	public void prepare(HashMap<String,Object> workConfig) throws ConfigurationException {
+	private void prepare(HashMap<String,Object> workConfig) throws ConfigurationException {
 
 		String name = (String) workConfig.get("name");
 		if(name == null) {
@@ -231,7 +224,7 @@ public class Boss {
 	 * @throws IOException
 	 */
 	private static JSONObject readConfigFile(URL configFile)
-		throws Exception, FileNotFoundException, IOException {
+		throws ConfigurationException, FileNotFoundException, IOException {
 
 		logger.debug("Attempting to read " + configFile.toString());
 
@@ -245,7 +238,7 @@ public class Boss {
         }
         catch ( Exception e ) {
             logger.error("Failed to parse config file", e);
-            throw new Exception("Failed to parse config file=(" + configFile.toString() + ")");
+            throw new ConfigurationException("Failed to parse config file=(" + configFile.toString() + ")");
         }
 
         return config;
