@@ -1,5 +1,7 @@
 package iinteractive.bullfinch;
 
+import iinteractive.bullfinch.Phrasebook.ParamTypes;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -19,10 +21,6 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class JDBCWorker implements Worker {
-
-    public enum ParamTypes {
-        BOOLEAN, NUMBER, INTEGER, STRING
-    }
 
 	static Logger logger = LoggerFactory.getLogger(JDBCWorker.class);
 
