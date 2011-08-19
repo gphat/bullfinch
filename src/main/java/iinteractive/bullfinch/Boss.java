@@ -46,37 +46,9 @@ public class Boss {
 			return;
 		}
 
-		JSONObject config;
-		try {
-			config = readConfigFile(configFile);
-
-		} catch(Exception e) {
-			logger.error("Failed to parse config file", e);
-			return;
-		}
-
-		if(config == null) {
-			logger.error("Failed to load config file.");
-			return;
-		}
 
 		try {
-			Boss boss = new Boss();
-
-			JSONArray workerList = (JSONArray) config.get("workers");
-			if(workerList == null) {
-				throw new Exception("Need a list of workers in the config file.");
-			}
-
-			@SuppressWarnings("unchecked")
-			Iterator<HashMap<String,Object>> workers = workerList.iterator();
-
-			// The config has at least one worker in it, so we'll treat iterate
-			// over the workers and spin off each one in turn.
-			while(workers.hasNext()) {
-				HashMap<String,Object> workerConfig = (HashMap<String,Object>) workers.next();
-				boss.prepare(workerConfig);
-			}
+			Boss boss = new Boss(configFile);
 
 			// Start all the threads now that we've verified that all were
 			// properly readied.
@@ -92,7 +64,37 @@ public class Boss {
 	 *
 	 * @param config Configuration (as a hashmap)
 	 */
-	public Boss() {
+	public Boss(URL configFile) throws Exception {
+
+		JSONObject config;
+		try {
+			config = readConfigFile(configFile);
+
+		} catch(Exception e) {
+			logger.error("Failed to parse config file", e);
+			return;
+		}
+
+		if(config == null) {
+			logger.error("Failed to load config file.");
+			return;
+		}
+
+		JSONArray workerList = (JSONArray) config.get("workers");
+		if(workerList == null) {
+			throw new Exception("Need a list of workers in the config file.");
+		}
+
+		@SuppressWarnings("unchecked")
+		Iterator<HashMap<String,Object>> workers = workerList.iterator();
+
+		// The config has at least one worker in it, so we'll treat iterate
+		// over the workers and spin off each one in turn.
+		while(workers.hasNext()) {
+			HashMap<String,Object> workerConfig = (HashMap<String,Object>) workers.next();
+			prepare(workerConfig);
+		}
+
 
 		// Get an empty hashmap to store threads
 		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
