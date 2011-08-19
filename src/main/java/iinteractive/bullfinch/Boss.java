@@ -64,7 +64,7 @@ public class Boss {
 	 *
 	 * @param config Configuration (as a hashmap)
 	 */
-	public Boss(URL configFile) throws ConfigurationException, FileNotFoundException, IOException {
+	public Boss(URL configFile) throws Exception {
 
 		JSONObject config = readConfigFile(configFile);
 
@@ -93,7 +93,7 @@ public class Boss {
 		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
 	}
 
-	private void prepare(HashMap<String,Object> workConfig) throws ConfigurationException {
+	private void prepare(HashMap<String,Object> workConfig)	throws Exception {
 
 		String name = (String) workConfig.get("name");
 		if(name == null) {
@@ -165,34 +165,30 @@ public class Boss {
 		ArrayList<Thread> workerThreads = new ArrayList<Thread>();
 		logger.debug("Created threadgroup for " + name);
 
-		try {
-			for(int i = 0; i < workerCount; i++) {
+		for(int i = 0; i < workerCount; i++) {
 
-				// Spin up a thread for each worker we were told to make.
+			// Spin up a thread for each worker we were told to make.
 
-				// Create an instance of a worker.
-				Worker worker = (Worker) Class.forName(workerClass).newInstance();
-				worker.configure(workerConfig);
+			// Create an instance of a worker.
+			Worker worker = (Worker) Class.forName(workerClass).newInstance();
+			worker.configure(workerConfig);
 
-				// Give it it's very own kestrel connection.
-				Client kestrel = new Client(workHost, workPort);
-				kestrel.connect();
+			// Give it it's very own kestrel connection.
+			Client kestrel = new Client(workHost, workPort);
+			kestrel.connect();
 
-				// Create the thread.
-				Minion workerInstance = new Minion(
-					kestrel, queue, worker, timeout, retryTime, retryAttempts
-				);
-				Thread workerThread = new Thread(tgroup, workerInstance);
-				workerThreads.add(workerThread);
+			// Create the thread.
+			Minion workerInstance = new Minion(
+				kestrel, queue, worker, timeout, retryTime, retryAttempts
+			);
+			Thread workerThread = new Thread(tgroup, workerInstance);
+			workerThreads.add(workerThread);
 
-				logger.debug("Readied thread (" + tgroup.getName() + "): " + i);
-			}
-
-			this.minionGroups.put(tgroup.getName(), workerThreads);
-			logger.debug("Added worker threads to minion map.");
-		} catch(Exception e) {
-			logger.error("Failed to ready worker thread", e);
+			logger.debug("Readied thread (" + tgroup.getName() + "): " + i);
 		}
+
+		this.minionGroups.put(tgroup.getName(), workerThreads);
+		logger.debug("Added worker threads to minion map.");
 	}
 
 	/**
