@@ -26,6 +26,8 @@ public class Minion implements Runnable {
 	private Client kestrel;
 	private int timeout;
 	private JSONParser parser;
+
+	private int retries = 0;
 	private int retryTime;
 	private int retryAttempts;
 
@@ -66,60 +68,69 @@ public class Minion implements Runnable {
 
 		while(true) {
 
-			int retries = 0;
-
 			try {
-				String val = this.kestrel.get(this.queueName, this.timeout);
+				try {
+					String val = this.kestrel.get(this.queueName, this.timeout);
 
-				if(val != null) {
-					logger.debug("Got item from queue:\n" + val);
-					JSONObject request = (JSONObject) parser.parse(new StringReader(val));
+					if(val != null) {
+						logger.debug("Got item from queue:\n" + val);
+						JSONObject request = (JSONObject) parser.parse(new StringReader(val));
 
-					// Try and get the response queue.
-					String responseQueue = (String) request.get("response_queue");
-					if(responseQueue == null) {
-						throw new Exception("Requests must contain a response queue!");
+						// Try and get the response queue.
+						String responseQueue = (String) request.get("response_queue");
+						if(responseQueue == null) {
+							throw new Exception("Requests must contain a response queue!");
+						}
+						logger.debug("Response will go to " + responseQueue);
+
+						// Get a list of items back from the worker
+						Iterator<String> items = this.worker.handle(request);
+						// Send those items back into the queue
+						while(items.hasNext()) {
+							this.kestrel.put(responseQueue, items.next());
+						}
+						// Top if off with an EOF.
+						this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
+						// Finally, confirm the item we took off the queue.
+						this.kestrel.confirm(this.queueName, 1);
 					}
-					logger.debug("Response will go to " + responseQueue);
+					logger.debug("Timeout expired, cycling");
+					// Reset the retry counter, since we had a successful cycle.
+					retries = 0;
 
-					// Get a list of items back from the worker
-					Iterator<String> items = this.worker.handle(request);
-					// Send those items back into the queue
-					while(items.hasNext()) {
-						this.kestrel.put(responseQueue, items.next());
-					}
-					// Top if off with an EOF.
-					this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
-					// Finally, confirm the item we took off the queue.
-					this.kestrel.confirm(this.queueName, 1);
+				} catch(Exception e) {
+					logger.error("Got an Exception, attempting to retry", e);
+
+					pauseForRetry(e);
 				}
-				logger.debug("Timeout expired, cycling");
-				// Reset the retry counter, since we had a successful cycle.
-				retries = 0;
-
-			} catch(IOException e) {
-				logger.error("Got an IO Exception");
-
-				// Check if we can retry
-				if(retries >= this.retryAttempts) {
-					// Abort! We can't get a solid connection.
-					logger.error("IOExceptions exceeded retry attempts, exiting", e);
-					return;
-				}
-
-				// Yield real quick for other threads
-				Thread.yield();
-
-				// Sleep for the prescribed retry time
-				logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
-				try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
-
-				// Increment retries, since we just slept for a bit.
-				retries++;
 			} catch(Exception e) {
 				logger.error("Error in worker thread, exiting", e);
 				return;
 			}
 		}
+	}
+
+	private void pauseForRetry(Exception e) throws IOException {
+
+		logger.debug("Currently at " + retries + " retries.");
+
+		// Check if we can retry
+		if(this.retries >= this.retryAttempts) {
+			// Abort! We can't get a solid connection.
+			logger.error("Retry attempts exceeded, exiting", e);
+			throw new IOException(e);
+		}
+
+		// Yield real quick for other threads
+		Thread.yield();
+
+		// Sleep for the prescribed retry time
+		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
+		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
+
+		this.kestrel.disconnect();
+		this.kestrel.connect();
+
+		this.retries++;
 	}
 }
