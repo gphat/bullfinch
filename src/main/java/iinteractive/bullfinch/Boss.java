@@ -81,16 +81,15 @@ public class Boss {
 		@SuppressWarnings("unchecked")
 		Iterator<HashMap<String,Object>> workers = workerList.iterator();
 
+		// Get an empty hashmap to store threads
+		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
+
 		// The config has at least one worker in it, so we'll treat iterate
 		// over the workers and spin off each one in turn.
 		while(workers.hasNext()) {
 			HashMap<String,Object> workerConfig = (HashMap<String,Object>) workers.next();
 			prepare(workerConfig);
 		}
-
-
-		// Get an empty hashmap to store threads
-		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
 	}
 
 	private void prepare(HashMap<String,Object> workConfig)	throws Exception {
