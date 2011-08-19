@@ -64,7 +64,7 @@ public class Boss {
 	 *
 	 * @param config Configuration (as a hashmap)
 	 */
-	public Boss(URL configFile) throws Exception {
+	public Boss(URL configFile) throws ConfigurationException {
 
 		JSONObject config;
 		try {
@@ -82,7 +82,7 @@ public class Boss {
 
 		JSONArray workerList = (JSONArray) config.get("workers");
 		if(workerList == null) {
-			throw new Exception("Need a list of workers in the config file.");
+			throw new ConfigurationException("Need a list of workers in the config file.");
 		}
 
 		@SuppressWarnings("unchecked")
@@ -100,32 +100,32 @@ public class Boss {
 		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
 	}
 
-	public void prepare(HashMap<String,Object> workConfig) throws Exception {
+	public void prepare(HashMap<String,Object> workConfig) throws ConfigurationException {
 
 		String name = (String) workConfig.get("name");
 		if(name == null) {
-			throw new Exception("Each worker must have a name!");
+			throw new ConfigurationException("Each worker must have a name!");
 		}
 
 		String workHost = (String) workConfig.get("kestrel_host");
 		if(workHost == null) {
-			throw new Exception("Each worker must have a kestrel_host!");
+			throw new ConfigurationException("Each worker must have a kestrel_host!");
 		}
 
 		Long workPortLng = (Long) workConfig.get("kestrel_port");
 		if(workPortLng == null) {
-			throw new Exception("Each worker must have a kestrel_port!");
+			throw new ConfigurationException("Each worker must have a kestrel_port!");
 		}
 		int workPort = workPortLng.intValue();
 
 		String workerClass = (String) workConfig.get("worker_class");
 		if(workerClass == null) {
-			throw new Exception("Each worker must have a worker_class!");
+			throw new ConfigurationException("Each worker must have a worker_class!");
 		}
 
 		String queue = (String) workConfig.get("subscribe_to");
 		if(queue == null) {
-			throw new Exception("Each worker must have a subscribe_to!");
+			throw new ConfigurationException("Each worker must have a subscribe_to!");
 		}
 
 		Long workerCountLng = (Long) workConfig.get("worker_count");
@@ -138,7 +138,7 @@ public class Boss {
 
 		Long timeoutLng = (Long) workConfig.get("timeout");
 		if(timeoutLng == null) {
-			throw new Exception("Each worker must have a timeout!");
+			throw new ConfigurationException("Each worker must have a timeout!");
 		}
 		int timeout = timeoutLng.intValue();
 
@@ -161,7 +161,7 @@ public class Boss {
 		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
 
 		if(workerConfig == null) {
-			throw new Exception("Each worker must have a worker_config!");
+			throw new ConfigurationException("Each worker must have a worker_config!");
 		}
 
 		// First, create a threadgroup to contain this worker's threads
