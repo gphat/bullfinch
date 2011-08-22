@@ -7,10 +7,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
+import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -28,7 +27,7 @@ public class Boss {
 
 	static Logger logger = LoggerFactory.getLogger(Boss.class);
 
-	private HashMap<String,ArrayList<Thread>> minionGroups;
+	private HashMap<String,HashMap<Minion,Thread>> minionGroups;
 	//private Thread kestrelThread;
 
 	public static void main(String[] args) {
@@ -39,13 +38,19 @@ public class Boss {
 		}
 
 		URL configFile;
+		long lastModified;
 		try {
 			configFile = new URL(args[0]);
+			URLConnection urlConn = configFile.openConnection();
+			lastModified = urlConn.getLastModified();
+			logger.debug("Last modified: " + lastModified);
 		} catch (MalformedURLException e) {
-			System.err.println("Must prode a well-formed url as a config file argument: " + args[0]);
+			logger.error("Must prode a well-formed url as a config file argument: " + args[0], e);
+			return;
+		} catch(IOException e) {
+			logger.error("Can't open config file", e);
 			return;
 		}
-
 
 		try {
 			Boss boss = new Boss(configFile);
@@ -54,6 +59,33 @@ public class Boss {
 			// properly readied.
 			boss.start();
 
+			while(true) {
+				Thread.sleep(5000);
+
+				boolean shouldReload = false;
+				try {
+					logger.debug("Checking config file age");
+					URLConnection urlConn = configFile.openConnection();
+					long newModified = urlConn.getLastModified();
+		            if(lastModified != newModified) {
+
+		            	logger.debug("Config file has changed, restart.");
+		            	lastModified = newModified;
+		            	// Configuration has changed, restart!
+		            	shouldReload = true;
+		            }
+				} catch(Exception e) {
+					shouldReload = false;
+					logger.warn("Error getting config file, ignoring.", e);
+				}
+
+				if(shouldReload) {
+					shouldReload = false; // Reset!
+					boss.stop();
+					boss = new Boss(configFile);
+					boss.start();
+				}
+			}
 		} catch(Exception e) {
 			logger.error("Failed to load worker", e);
 		}
@@ -82,7 +114,7 @@ public class Boss {
 		Iterator<HashMap<String,Object>> workers = workerList.iterator();
 
 		// Get an empty hashmap to store threads
-		this.minionGroups = new HashMap<String,ArrayList<Thread>>();
+		this.minionGroups = new HashMap<String,HashMap<Minion,Thread>>();
 
 		// The config has at least one worker in it, so we'll treat iterate
 		// over the workers and spin off each one in turn.
@@ -156,17 +188,10 @@ public class Boss {
 			throw new ConfigurationException("Each worker must have a worker_config!");
 		}
 
-		// First, create a threadgroup to contain this worker's threads
-		ThreadGroup tgroup = new ThreadGroup(name);
-		// We're using our own threadgroup because threadgroups are pretty much
-		// useless.  We're using them only because it's nice to group them
-		// logically.
-		ArrayList<Thread> workerThreads = new ArrayList<Thread>();
+		HashMap<Minion,Thread> workers = new HashMap<Minion,Thread>();
 		logger.debug("Created threadgroup for " + name);
 
 		for(int i = 0; i < workerCount; i++) {
-
-			// Spin up a thread for each worker we were told to make.
 
 			// Create an instance of a worker.
 			Worker worker = (Worker) Class.forName(workerClass).newInstance();
@@ -176,17 +201,12 @@ public class Boss {
 			Client kestrel = new Client(workHost, workPort);
 			kestrel.connect();
 
-			// Create the thread.
-			Minion workerInstance = new Minion(
-				kestrel, queue, worker, timeout, retryTime, retryAttempts
-			);
-			Thread workerThread = new Thread(tgroup, workerInstance);
-			workerThreads.add(workerThread);
-
-			logger.debug("Readied thread (" + tgroup.getName() + "): " + i);
+			// Add the worker to the list so we can run it later.
+			Minion minion = new Minion(kestrel, queue, worker, timeout, retryTime, retryAttempts);
+			workers.put(minion,	new Thread(minion));
 		}
 
-		this.minionGroups.put(tgroup.getName(), workerThreads);
+		this.minionGroups.put(name, workers);
 		logger.debug("Added worker threads to minion map.");
 	}
 
@@ -198,13 +218,43 @@ public class Boss {
 		Iterator<String> workerNames = this.minionGroups.keySet().iterator();
 		// Iterate over each worker "group"...
 		while(workerNames.hasNext()) {
+
 			String name = workerNames.next();
-			List<Thread> threads = this.minionGroups.get(name);
-			Iterator<Thread> workers = threads.iterator();
+
+			Iterator<Thread> workers = this.minionGroups.get(name).values().iterator();
 			while(workers.hasNext()) {
-				// And start each thread in the group
 				Thread worker = workers.next();
 				worker.start();
+			}
+		}
+	}
+
+	/**
+	 * Stop the worker threads
+	 */
+	public void stop() {
+
+		Iterator<String> workerNames = this.minionGroups.keySet().iterator();
+		// Iterate over each worker "group"...
+		while(workerNames.hasNext()) {
+
+			String name = workerNames.next();
+
+			// Issue a cancel to each minion so they can stop
+			logger.debug("Cancelling minions");
+			Iterator<Minion> minions = this.minionGroups.get(name).keySet().iterator();
+			while(minions.hasNext()) {
+				// And start each thread in the group
+				Minion worker = minions.next();
+				worker.cancel();
+			}
+
+			// Now wait around for each thread to finish in turn.
+			logger.debug("Joining threads");
+			Iterator<Thread> threads = this.minionGroups.get(name).values().iterator();
+			while(threads.hasNext()) {
+				Thread thread = threads.next();
+				try { thread.join(); } catch(Exception e) { logger.error("Interrupted joining thread."); }
 			}
 		}
 	}

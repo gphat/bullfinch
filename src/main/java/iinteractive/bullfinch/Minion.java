@@ -31,6 +31,8 @@ public class Minion implements Runnable {
 	private int retryTime;
 	private int retryAttempts;
 
+	private volatile boolean cancelled = false;
+
 	/**
 	 * Create a new minion.
 	 *
@@ -58,7 +60,7 @@ public class Minion implements Runnable {
 	 * the timeout.  When it gets a message it will pass it off to the worker
 	 * to handle.
 	 *
-	 * Note: If an IOEXception is caught in communicating with the kestrel queue
+	 * Note: If an Exception is caught in communicating with the kestrel queue
 	 * then we'll make use of retryTime and retryAttempts.  First, we'll sleep
 	 * for retryTime seconds, up to retryAttempts times before we
 	 *
@@ -66,10 +68,11 @@ public class Minion implements Runnable {
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		while(true) {
-
+		try {
+			// We are using nested tries because we want to attempt to reconnect
+			// on some connections.
 			try {
-				try {
+				while(!Thread.currentThread().isInterrupted() && !cancelled) {
 					String val = this.kestrel.get(this.queueName, this.timeout);
 
 					if(val != null) {
@@ -97,16 +100,18 @@ public class Minion implements Runnable {
 					logger.debug("Timeout expired, cycling");
 					// Reset the retry counter, since we had a successful cycle.
 					retries = 0;
-
-				} catch(Exception e) {
-					logger.error("Got an Exception, attempting to retry", e);
-
-					pauseForRetry(e);
 				}
-			} catch(Exception e) {
-				logger.error("Error in worker thread, exiting", e);
+			} catch(InterruptedException e) {
+				// In case we get an interrupt for whatever reason
+				logger.info("Caught interrupt, exiting.");
 				return;
+			} catch(Exception e) {
+				logger.error("Got an Exception, attempting to retry", e);
+				pauseForRetry(e);
 			}
+		} catch(Exception e) {
+			logger.error("Error in worker thread, exiting", e);
+			return;
 		}
 	}
 
@@ -132,5 +137,11 @@ public class Minion implements Runnable {
 		this.kestrel.connect();
 
 		this.retries++;
+	}
+
+	public void cancel() {
+
+		logger.info("Cancel requested, will exit soon.");
+		this.cancelled = true;
 	}
 }
