@@ -29,6 +29,7 @@ public class Boss {
 
 	private HashMap<String,HashMap<Minion,Thread>> minionGroups;
 	//private Thread kestrelThread;
+	private long configRefreshSeconds = 300;
 
 	public static void main(String[] args) {
 
@@ -60,7 +61,7 @@ public class Boss {
 			boss.start();
 
 			while(true) {
-				Thread.sleep(5000);
+				Thread.sleep(boss.getConfigRefreshSeconds() * 1000);
 
 				boolean shouldReload = false;
 				try {
@@ -80,6 +81,7 @@ public class Boss {
 				}
 
 				if(shouldReload) {
+					logger.info("Restarting due to config file changes");
 					shouldReload = false; // Reset!
 					boss.stop();
 					boss = new Boss(configFile);
@@ -211,6 +213,16 @@ public class Boss {
 	}
 
 	/**
+	 * Get the number of seconds between config refresh checks.
+	 *
+	 * @return The number of seconds between config refreshes.
+	 */
+	private long getConfigRefreshSeconds() {
+
+		return this.configRefreshSeconds;
+	}
+
+	/**
 	 * Start the worker threads.
 	 */
 	public void start() {
@@ -268,7 +280,7 @@ public class Boss {
 	 * @throws FileNotFoundException
 	 * @throws IOException
 	 */
-	private static JSONObject readConfigFile(URL configFile)
+	private JSONObject readConfigFile(URL configFile)
 		throws ConfigurationException, FileNotFoundException, IOException {
 
 		logger.debug("Attempting to read " + configFile.toString());
@@ -280,6 +292,14 @@ public class Boss {
             config = (JSONObject) parser.parse(
             	new InputStreamReader(configFile.openStream())
             );
+
+    		Long configRefreshSecondsLng = (Long) config.get("config_refresh_seconds");
+    		if(configRefreshSecondsLng == null) {
+    			logger.info("No config_refresh_seconds specified, defaulting to 300");
+    			configRefreshSecondsLng = new Long(5);
+    		}
+    		this.configRefreshSeconds = configRefreshSecondsLng.intValue();
+    		logger.debug("Config will refresh in " + this.configRefreshSeconds + " seconds");
         }
         catch ( Exception e ) {
             logger.error("Failed to parse config file", e);
