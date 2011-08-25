@@ -162,7 +162,7 @@ The name of the kestrel queue from which to draw work items for this worker.
 ### timeout ###
 
 The timeout that each "get" request will wait for. This prevents bullfinch
-from repeatedly banging on kestrel, instead politely waiting for $timeout
+from repeatedly banging on kestrel, instead politely waiting for `timeout`
 milliseconds to see if anything is ready for work in the queue.
 
 ## Optional Options ##
