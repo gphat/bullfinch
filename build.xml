@@ -69,7 +69,7 @@
   </junit>
  </target>
 
- <target name="jar" depends="compile">
+ <target name="dist" depends="test">
   <exec executable="git" outputproperty="gitversion">
    <arg value="rev-parse" />
    <arg value="--short" />
