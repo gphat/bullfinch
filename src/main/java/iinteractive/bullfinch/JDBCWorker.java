@@ -32,14 +32,12 @@ public class JDBCWorker implements Worker {
 	private String validationQuery;
 
 	private Phrasebook statementBook;
-	private Phrasebook procedureBook;
 
 	private BasicDataSource ds;
 
 	public JDBCWorker() {
 
 		this.statementBook = new Phrasebook();
-		this.procedureBook= new Phrasebook();
 	}
 
 	/**
@@ -123,30 +121,6 @@ public class JDBCWorker implements Worker {
 					this.statementBook.addPhrase(key, stmt, pList);
 				} else {
 					this.statementBook.addPhrase(key, stmt);
-				}
-			}
-		}
-
-		@SuppressWarnings("unchecked")
-		HashMap<String,HashMap<String,Object>> procedures = (HashMap<String,HashMap<String,Object>>) config.get("procedures");
-
-		if(procedures != null) {
-			// Iterate over each procedure and prepare it, optionally storing it's
-			// parameters as well.
-			Iterator<String> keys = procedures.keySet().iterator();
-			while(keys.hasNext()) {
-				String name = keys.next();
-				logger.debug("Loading procedure information for " + name);
-				HashMap<String,Object> procInfo = procedures.get(name);
-
-				if(procInfo.containsKey("params")) {
-					@SuppressWarnings("unchecked")
-					ArrayList<ParamTypes> pList = (ArrayList<ParamTypes>) procInfo.get("params");
-					if(pList.size() < 1) {
-						logger.warn("procedure claims params, but lists none!");
-					}
-					logger.debug("Procedure has " + pList.size() + " params");
-					this.procedureBook.addPhrase(name, name, pList);
 				}
 			}
 		}
