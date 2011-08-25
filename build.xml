@@ -7,6 +7,7 @@
  <property name="src" value="src/main/java" />
  <property name="src.tests" value="src/test/java" />
  <property name="temp" value="tmp" />
+ <property name="testdir" value="testdir" />
 
  <path id="classpath">
   <fileset dir="${libs}">
@@ -21,6 +22,7 @@
  <target name="clean">
   <delete dir="${build}"/>
   <delete dir="${temp}"/>
+  <delete dir="${testdir}"/>
  </target>
 
  <target name="init" depends="clean">
@@ -52,16 +54,17 @@
 
 
  <target name="test" depends="compile-tests">
+  <mkdir dir="${testdir}"/>
   <junit printsummary="yes" haltonfailure="yes" showoutput="yes">
    <classpath refid="classpath"/>
 
-   <batchtest fork="yes">
+   <batchtest fork="yes" todir="${testdir}">
     <fileset dir="${src.tests}">
      <include name="**/*.java"/>
     </fileset>
 <!--    <formatter type="failure"/>-->
     <!-- I want to see something ... -->
-    <formatter type="plain" usefile="false"/>
+    <formatter type="xml" usefile="true"/>
    </batchtest>
   </junit>
  </target>
