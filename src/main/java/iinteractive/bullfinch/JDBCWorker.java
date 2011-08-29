@@ -1,6 +1,6 @@
 package iinteractive.bullfinch;
 
-import iinteractive.bullfinch.Phrasebook.ParamTypes;
+import iinteractive.bullfinch.Phrasebook.ParamType;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -113,10 +113,20 @@ public class JDBCWorker implements Worker {
 				// If the statement has params, stuff them into a param map
 				if(stmtInfo.containsKey("params")) {
 					@SuppressWarnings("unchecked")
-					ArrayList<ParamTypes> pList = (ArrayList<ParamTypes>) stmtInfo.get("params");
-					if(pList.size() < 1) {
+
+					// Convert parametrs from string to ParamType
+					ArrayList<String> pTypes = (ArrayList<String>) stmtInfo.get("params");
+					if(pTypes.size() < 1) {
 						logger.warn("statement claims params, but lists none!");
 					}
+					ArrayList<ParamType> pList = new ArrayList<ParamType>(pTypes.size());
+
+					// Do the actual conversion
+					Iterator<String> pTypeIter = pTypes.iterator();
+					while(pTypeIter.hasNext()) {
+						pList.add(ParamType.valueOf(pTypeIter.next()));
+					}
+
 					logger.debug("Statement has " + pList.size() + " params");
 					this.statementBook.addPhrase(key, stmt, pList);
 				} else {
@@ -197,7 +207,7 @@ public class JDBCWorker implements Worker {
 
 		@SuppressWarnings("unchecked")
 		ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
-		List<ParamTypes> reqParams = this.statementBook.getParams(name);
+		List<ParamType> reqParams = this.statementBook.getParams(name);
 		if(reqParams != null) {
 
 			// Verify we have params if they are needed
@@ -209,7 +219,7 @@ public class JDBCWorker implements Worker {
 			}
 
 			for(int i = 0; i < reqParams.size(); i++) {
-                ParamTypes paramType = reqParams.get(i);
+                ParamType paramType = reqParams.get(i);
                 switch ( paramType ) {
 	                case BOOLEAN :
 	                    prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());

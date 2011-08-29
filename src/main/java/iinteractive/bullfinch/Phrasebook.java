@@ -6,16 +6,16 @@ import java.util.List;
 public class Phrasebook {
 
 	private HashMap<String,String> phraseMap;
-	private HashMap<String,List<ParamTypes>> phraseParamMap;
+	private HashMap<String,List<ParamType>> phraseParamMap;
 
-    public enum ParamTypes {
+    public enum ParamType {
         BOOLEAN, NUMBER, INTEGER, STRING
     }
 
     public Phrasebook() {
 
     	this.phraseMap = new HashMap<String,String>();
-    	this.phraseParamMap = new HashMap<String,List<ParamTypes>>();
+    	this.phraseParamMap = new HashMap<String,List<ParamType>>();
     }
 
 	public void addPhrase(String name, String phrase) {
@@ -30,7 +30,7 @@ public class Phrasebook {
 	 * @param phrase	The phrase
 	 * @param params	A list of parameters that will be used for this phrase. Can be null
 	 */
-	public void addPhrase(String name, String phrase, List<ParamTypes> params) {
+	public void addPhrase(String name, String phrase, List<ParamType> params) {
 
 		phraseMap.put(name, phrase);
 
@@ -56,7 +56,7 @@ public class Phrasebook {
 	 * @param name	The name of the phrase
 	 * @return The list of params, which may be null
 	 */
-	public List<ParamTypes> getParams(String name) {
+	public List<ParamType> getParams(String name) {
 
 		return this.phraseParamMap.get(name);
 	}

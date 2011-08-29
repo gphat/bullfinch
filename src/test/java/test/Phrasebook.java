@@ -2,7 +2,7 @@ package test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import iinteractive.bullfinch.Phrasebook.ParamTypes;
+import iinteractive.bullfinch.Phrasebook.ParamType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,23 +27,23 @@ public class Phrasebook {
 
 		assertEquals("getPhrase", "select foo from dual", this.book.getPhrase("foo"));
 
-		List<ParamTypes> params = book.getParams("foo");
+		List<ParamType> params = book.getParams("foo");
 		assertTrue("Got null params", params == null);
 	}
 
 	@Test
 	public void addPhraseWithParams() {
 
-		ArrayList<ParamTypes> params = new ArrayList<ParamTypes>();
-		params.add(ParamTypes.STRING);
+		ArrayList<ParamType> params = new ArrayList<ParamType>();
+		params.add(ParamType.STRING);
 
 		this.book.addPhrase("foo", "select foo from dual where bar=?", params);
 
 		assertEquals("getPhrase", "select foo from dual where bar=?", this.book.getPhrase("foo"));
 
-		List<ParamTypes> ps = book.getParams("foo");
+		List<ParamType> ps = book.getParams("foo");
 		assertTrue("Got params", ps != null);
 		assertTrue("Got 1 param", ps.size() == 1);
-		assertTrue("Got correct param", ps.get(0) == ParamTypes.STRING);
+		assertTrue("Got correct param", ps.get(0) == ParamType.STRING);
 	}
 }
