@@ -11,24 +11,28 @@
             "timeout" : 10000,
             "options"  : {
                 "connection" : {
-                    "driver" : "com.mysql.jdbc.Driver",
-                    "dsn" : "jdbc:mysql://localhost/labor",
-                    "uid" : "root",
-                    "validation" : "SELECT version()"
+                    "driver" : "org.hsqldb.jdbcDriver",
+                    "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",
+                    "uid" : "SA",
+                    "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
                 },
                 "statements" : {
-                    "getAllAddresses" : {
-                        "sql"    : "SELECT * FROM address",
+                    "getInt" : {
+                        "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",
+                        "params" : [ "INTEGER" ]
                     },
-                    "getAllActiveECodesByPage" : {
-                        "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
-                        "params" : [ "INTEGER", "INTEGER" ]
-                    }
-                },
-                "procedures" : {
-                    "foo" : {
-                        "params": [ "INTEGER" ],
-                    }
+                    "getFloat" : {
+                        "sql"    : "SELECT a_float FROM PUBLIC.TEST_TABLE WHERE a_float=?",
+                        "params" : [ "NUMBER" ]
+                    },
+                    "getBool" : {
+                        "sql"    : "SELECT a_bool FROM PUBLIC.TEST_TABLE WHERE a_bool=?",
+                        "params" : [ "BOOLEAN" ]
+                    },
+                    "getString" : {
+                        "sql"    : "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?",
+                        "params" : [ "STRING" ]
+                    },
                 }
             }
         }

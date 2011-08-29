@@ -4,17 +4,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 import iinteractive.bullfinch.JDBCWorker;
-import iinteractive.bullfinch.Phrasebook.ParamTypes;
 
+import java.io.InputStreamReader;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
+import org.json.simple.parser.JSONParser;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,49 +46,63 @@ public class Simple {
 
 			this.conn = conn;
 
-			HashMap<String,String> connection = new HashMap<String,String>();
-			connection.put("dsn", "jdbc:hsqldb:file:tmp/tmp;shutdown=true");
-			connection.put("driver", "org.hsqldb.jdbcDriver");
-			connection.put("uid", "SA");
-			connection.put("validation", "SELECT current_timestamp FROM PUBLIC.TEST_TABLE");
-
-			HashMap<String,HashMap<String,Object>> statements = new HashMap<String,HashMap<String,Object>>();
-
-			HashMap<String,Object> getInt = new HashMap<String,Object>();
-			getInt.put("sql", "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?");
-			ArrayList<ParamTypes> getIntParams = new ArrayList<ParamTypes>();
-			getIntParams.add(ParamTypes.INTEGER);
-			getInt.put("params", getIntParams);
-			statements.put("getInt", getInt);
-
-			HashMap<String,Object> getFloat = new HashMap<String,Object>();
-			getFloat.put("sql", "SELECT a_float FROM PUBLIC.TEST_TABLE WHERE a_float=?");
-			ArrayList<ParamTypes> getFloatParams = new ArrayList<ParamTypes>();
-			getFloatParams.add(ParamTypes.NUMBER);
-			getFloat.put("params", getFloatParams);
-			statements.put("getFloat", getFloat);
-
-			HashMap<String,Object> getBool = new HashMap<String,Object>();
-			getBool.put("sql", "SELECT a_bool FROM PUBLIC.TEST_TABLE WHERE a_bool=?");
-			ArrayList<ParamTypes> getBoolParams = new ArrayList<ParamTypes>();
-			getBoolParams.add(ParamTypes.BOOLEAN);
-			getBool.put("params", getBoolParams);
-			statements.put("getBool", getBool);
-
-			HashMap<String,Object> getString = new HashMap<String,Object>();
-			getString.put("sql", "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?");
-			ArrayList<ParamTypes> getStringParams = new ArrayList<ParamTypes>();
-			getStringParams.add(ParamTypes.STRING);
-			getString.put("params", getStringParams);
-			statements.put("getString", getString);
-
-			HashMap<String,Object> config = new HashMap<String,Object>();
-			config.put("connection", connection);
-			config.put("statements", statements);
+//			HashMap<String,String> connection = new HashMap<String,String>();
+//			connection.put("dsn", "jdbc:hsqldb:file:tmp/tmp;shutdown=true");
+//			connection.put("driver", "org.hsqldb.jdbcDriver");
+//			connection.put("uid", "SA");
+//			connection.put("validation", "SELECT current_timestamp FROM PUBLIC.TEST_TABLE");
+//
+//			HashMap<String,HashMap<String,Object>> statements = new HashMap<String,HashMap<String,Object>>();
+//
+//			HashMap<String,Object> getInt = new HashMap<String,Object>();
+//			getInt.put("sql", "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?");
+//			ArrayList<ParamTypes> getIntParams = new ArrayList<ParamTypes>();
+//			getIntParams.add(ParamTypes.INTEGER);
+//			getInt.put("params", getIntParams);
+//			statements.put("getInt", getInt);
+//
+//			HashMap<String,Object> getFloat = new HashMap<String,Object>();
+//			getFloat.put("sql", "SELECT a_float FROM PUBLIC.TEST_TABLE WHERE a_float=?");
+//			ArrayList<ParamTypes> getFloatParams = new ArrayList<ParamTypes>();
+//			getFloatParams.add(ParamTypes.NUMBER);
+//			getFloat.put("params", getFloatParams);
+//			statements.put("getFloat", getFloat);
+//
+//			HashMap<String,Object> getBool = new HashMap<String,Object>();
+//			getBool.put("sql", "SELECT a_bool FROM PUBLIC.TEST_TABLE WHERE a_bool=?");
+//			ArrayList<ParamTypes> getBoolParams = new ArrayList<ParamTypes>();
+//			getBoolParams.add(ParamTypes.BOOLEAN);
+//			getBool.put("params", getBoolParams);
+//			statements.put("getBool", getBool);
+//
+//			HashMap<String,Object> getString = new HashMap<String,Object>();
+//			getString.put("sql", "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?");
+//			ArrayList<ParamTypes> getStringParams = new ArrayList<ParamTypes>();
+//			getStringParams.add(ParamTypes.STRING);
+//			getString.put("params", getStringParams);
+//			statements.put("getString", getString);
+//
+//			HashMap<String,Object> config = new HashMap<String,Object>();
+//			config.put("connection", connection);
+//			config.put("statements", statements);
 
 			JDBCWorker worker = new JDBCWorker();
 
-			worker.configure(config);
+			JSONParser parser = new JSONParser();
+
+			URL configFile = new URL("file:conf/bullfinch.json");
+            JSONObject config = (JSONObject) parser.parse(
+            	new InputStreamReader(configFile.openStream())
+            );
+            JSONArray workerList = (JSONArray) config.get("workers");
+
+    		@SuppressWarnings("unchecked")
+    		HashMap<String,Object> workConfig = (HashMap<String,Object>) workerList.get(0);
+
+    		@SuppressWarnings("unchecked")
+    		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
+
+			worker.configure(workerConfig);
 
 			this.worker = worker;
 
