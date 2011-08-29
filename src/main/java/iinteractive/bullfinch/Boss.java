@@ -296,7 +296,7 @@ public class Boss {
     		Long configRefreshSecondsLng = (Long) config.get("config_refresh_seconds");
     		if(configRefreshSecondsLng == null) {
     			logger.info("No config_refresh_seconds specified, defaulting to 300");
-    			configRefreshSecondsLng = new Long(5);
+    			configRefreshSecondsLng = new Long(300);
     		}
     		this.configRefreshSeconds = configRefreshSecondsLng.intValue();
     		logger.debug("Config will refresh in " + this.configRefreshSeconds + " seconds");
