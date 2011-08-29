@@ -137,6 +137,12 @@ To configure workers, use the following config:
         ]
     }
 
+### config_refresh_seconds
+
+The number of seconds to wait before trying to fetch a new config file.  If a
+new one is detected then the threads will be shutdown and Bullfinch will
+restart.  Defaults to 300 (5 minutes).
+
 ## Required Options ##
 
 ### name ###
@@ -180,11 +186,12 @@ passed to the worker when it is configured.
 Bullfinch will try and survive if Kestrel does down or if it otherwise loses
 it's network connection.  This setting controls how many times Bullfinch will
 attempt to reconnect before giving up and exiting. This helps you survive any
-planned or unplanned Kestrel outages.
+planned or unplanned Kestrel outages. Defaults to 5.
 
 ### retry_time ###
 
 This setting controls how long a worker will sleep before trying to reconnect. If an error occurs then it we will sleep for `retry_time` seconds, then try to reconnect.  If this fails, it will try again, up to `retry_attempts` times.
+Defaults to 20 seconds.
 
 ### worker_count ###
 
