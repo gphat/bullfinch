@@ -77,5 +77,3 @@ request you specified.
 # LEARNING MORE #
 
 Check out the docs directory.
-
-asdasd
