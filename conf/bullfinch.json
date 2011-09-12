@@ -17,6 +17,12 @@
                     "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
                 },
                 "statements" : {
+                    "badTable": {
+                        "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
+                    },
+                    "goodTable": {
+                        "sql": "SELECT current_timestamp FROM public.TEST_TABLE",
+                    },
                     "getInt" : {
                         "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",
                         "params" : [ "INTEGER" ]

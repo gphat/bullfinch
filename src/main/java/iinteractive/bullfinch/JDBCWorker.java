@@ -144,30 +144,35 @@ public class JDBCWorker implements Worker {
 	 */
 	public Iterator<String> handle(HashMap<String,Object> request) throws Exception {
 
+		ArrayList<String> list = new ArrayList<String>();
+
+		Connection conn = null;
 		try {
 			// Grab a connection from the pool
-			Connection conn = this.ds.getConnection();
+			conn = this.ds.getConnection();
 
 			// Get the resultset back and transfer it's content into a list so
 			// that we can return an iterator AFTER closing the connection.
 			ResultSet rs = bindAndExecuteQuery(conn, request);
-			ArrayList<String> list = new ArrayList<String>();
+
 			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(rs);
 			while(wrapper.hasNext()) {
 				list.add(wrapper.next());
 			}
-			conn.close();
-			return list.iterator();
 		} catch(Exception e) {
 			logger.error("Got an exception from SQL execution", e);
 			// In the case of an exception, reply back with an ERROR as the
 			// key and the message as the value.
 			JSONObject obj = new JSONObject();
 			obj.put("ERROR", e.getMessage());
-			ArrayList<String> list = new ArrayList<String>();
 			list.add(obj.toString());
-			return list.iterator();
+		} finally {
+			if(conn != null) {
+				conn.close();
+			}
 		}
+
+		return list.iterator();
 	}
 
 	private BasicDataSource connect() throws Exception {

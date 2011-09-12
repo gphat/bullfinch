@@ -2,6 +2,7 @@ package test.jdbcworker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import iinteractive.bullfinch.JDBCWorker;
 
@@ -45,46 +46,6 @@ public class Simple {
 			stAddTwo.close();
 
 			this.conn = conn;
-
-//			HashMap<String,String> connection = new HashMap<String,String>();
-//			connection.put("dsn", "jdbc:hsqldb:file:tmp/tmp;shutdown=true");
-//			connection.put("driver", "org.hsqldb.jdbcDriver");
-//			connection.put("uid", "SA");
-//			connection.put("validation", "SELECT current_timestamp FROM PUBLIC.TEST_TABLE");
-//
-//			HashMap<String,HashMap<String,Object>> statements = new HashMap<String,HashMap<String,Object>>();
-//
-//			HashMap<String,Object> getInt = new HashMap<String,Object>();
-//			getInt.put("sql", "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?");
-//			ArrayList<ParamTypes> getIntParams = new ArrayList<ParamTypes>();
-//			getIntParams.add(ParamTypes.INTEGER);
-//			getInt.put("params", getIntParams);
-//			statements.put("getInt", getInt);
-//
-//			HashMap<String,Object> getFloat = new HashMap<String,Object>();
-//			getFloat.put("sql", "SELECT a_float FROM PUBLIC.TEST_TABLE WHERE a_float=?");
-//			ArrayList<ParamTypes> getFloatParams = new ArrayList<ParamTypes>();
-//			getFloatParams.add(ParamTypes.NUMBER);
-//			getFloat.put("params", getFloatParams);
-//			statements.put("getFloat", getFloat);
-//
-//			HashMap<String,Object> getBool = new HashMap<String,Object>();
-//			getBool.put("sql", "SELECT a_bool FROM PUBLIC.TEST_TABLE WHERE a_bool=?");
-//			ArrayList<ParamTypes> getBoolParams = new ArrayList<ParamTypes>();
-//			getBoolParams.add(ParamTypes.BOOLEAN);
-//			getBool.put("params", getBoolParams);
-//			statements.put("getBool", getBool);
-//
-//			HashMap<String,Object> getString = new HashMap<String,Object>();
-//			getString.put("sql", "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?");
-//			ArrayList<ParamTypes> getStringParams = new ArrayList<ParamTypes>();
-//			getStringParams.add(ParamTypes.STRING);
-//			getString.put("params", getStringParams);
-//			statements.put("getString", getString);
-//
-//			HashMap<String,Object> config = new HashMap<String,Object>();
-//			config.put("connection", connection);
-//			config.put("statements", statements);
 
 			JDBCWorker worker = new JDBCWorker();
 
@@ -215,6 +176,28 @@ public class Simple {
 
 		} catch(Exception e) {
 			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testBadTable() {
+
+		JDBCWorker worker = this.worker;
+		try {
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"badTable\"}");
+			Iterator<String> iter = worker.handle(request);
+			assertEquals("error", "{\"ERROR\":\"Borrow prepareStatement from pool failed\"}", iter.next());
+			assertFalse("no more rows", iter.hasNext());
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+
+		try {
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"goodTable\"}");
+			Iterator<String> iter = worker.handle(request);
+			assertTrue("follow up query", iter.next().startsWith("{\"row_data\":"));
+		} catch(Exception e) {
 			fail(e.getMessage());
 		}
 	}
