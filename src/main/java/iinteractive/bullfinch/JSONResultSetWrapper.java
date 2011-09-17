@@ -17,13 +17,15 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	static Logger logger = LoggerFactory.getLogger(JSONResultSetWrapper.class);
 	private ResultSet resultSet;
 	private ResultSetMetaData metadata;
+	private String tracer = null;
 	private String[] columnNames;
 	private int[] columnTypes;
 	private int columnCount;
 
 
-	public JSONResultSetWrapper(ResultSet rs) throws SQLException {
+	public JSONResultSetWrapper(String tracer, ResultSet rs) throws SQLException {
 
+		this.tracer = tracer;
 		this.resultSet = rs;
 		this.metadata = rs.getMetaData();
 		this.columnCount = this.metadata.getColumnCount();
@@ -70,7 +72,9 @@ public class JSONResultSetWrapper implements Iterator<String> {
 
 		try {
 
-
+			if(this.tracer != null) {
+				obj.put("tracer", this.tracer);
+			}
 			obj.put("row_num", new Integer(resultSet.getRow()));
 
 	        JSONObject data = new JSONObject();

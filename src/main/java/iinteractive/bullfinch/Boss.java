@@ -5,6 +5,7 @@ import iinteractive.kestrel.Client;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -28,8 +29,12 @@ public class Boss {
 	static Logger logger = LoggerFactory.getLogger(Boss.class);
 
 	private HashMap<String,HashMap<Minion,Thread>> minionGroups;
-
 	private long configRefreshSeconds = 300;
+	private PerformanceCollector collector;
+
+	private boolean collecting = false;
+	private Thread emitterThread;
+	private PerformanceEmitter emitter;
 
 	public static void main(String[] args) {
 
@@ -107,6 +112,33 @@ public class Boss {
 			return;
 		}
 
+		HashMap<String,Object> perfConfig = (HashMap<String,Object>) config.get("performance");
+		if(perfConfig != null) {
+			this.collecting = (Boolean) perfConfig.get("collect");
+		}
+
+		InetAddress addr = InetAddress.getLocalHost();
+		this.collector = new PerformanceCollector(addr.getHostName(), this.collecting);
+
+		if(this.collecting) {
+			// Prepare the emitter thread
+			if(this.collecting) {
+				Client kestrel = new Client((String) perfConfig.get("kestrel_host"), ((Long) perfConfig.get("kestrel_port")).intValue());
+				kestrel.connect();
+				this.emitter = new PerformanceEmitter(this.collector, kestrel, (String) perfConfig.get("queue"));
+				if(perfConfig.containsKey("timeout")) {
+					this.emitter.setTimeout(((Long) perfConfig.get("timeout")).intValue());
+				}
+				if(perfConfig.containsKey("retry_time")) {
+					this.emitter.setRetryTime(((Long) perfConfig.get("retry_time")).intValue());
+				}
+				if(perfConfig.containsKey("retry_attempts")) {
+					this.emitter.setRetryAttempts(((Long) perfConfig.get("retry_attempts")).intValue());
+				}
+				this.emitterThread = new Thread(this.emitter);
+			}
+		}
+
 		JSONArray workerList = (JSONArray) config.get("workers");
 		if(workerList == null) {
 			throw new ConfigurationException("Need a list of workers in the config file.");
@@ -124,6 +156,7 @@ public class Boss {
 			HashMap<String,Object> workerConfig = (HashMap<String,Object>) workers.next();
 			prepareWorker(workerConfig);
 		}
+
 	}
 
 	/**
@@ -175,18 +208,8 @@ public class Boss {
 		int timeout = timeoutLng.intValue();
 
 		Long retryTimeLng = (Long) workConfig.get("retry_time");
-		if(retryTimeLng == null) {
-			logger.info("No retry_time specified, defaulting to 20 seconds.");
-			retryTimeLng = new Long(20);
-		}
-		int retryTime = retryTimeLng.intValue();
 
 		Long retryAttemptsLng = (Long) workConfig.get("retry_attempts");
-		if(retryAttemptsLng == null) {
-			logger.info("No retry_attempts specified, defaulting to 5.");
-			retryAttemptsLng = new Long(5);
-		}
-		int retryAttempts = retryAttemptsLng.intValue();
 
 		// Get the config options to pass to the worker
 		@SuppressWarnings("unchecked")
@@ -210,7 +233,16 @@ public class Boss {
 			kestrel.connect();
 
 			// Add the worker to the list so we can run it later.
-			Minion minion = new Minion(kestrel, queue, worker, timeout, retryTime, retryAttempts);
+			Minion minion = new Minion(this.collector, kestrel, queue, worker, timeout);
+
+			// Set some options, if necessary.
+			if(retryTimeLng != null) {
+				minion.setRetryTime(retryTimeLng.intValue());
+			}
+			if(retryAttemptsLng != null) {
+				minion.setRetryAttempts(retryAttemptsLng.intValue());
+			}
+
 			workers.put(minion,	new Thread(minion));
 		}
 
@@ -245,6 +277,10 @@ public class Boss {
 				worker.start();
 			}
 		}
+
+		if(this.collecting) {
+			this.emitterThread.start();
+		}
 	}
 
 	/**
@@ -266,6 +302,9 @@ public class Boss {
 				Minion worker = minions.next();
 				worker.cancel();
 			}
+			if(this.collecting) {
+				this.emitter.cancel();
+			}
 
 			// Now wait around for each thread to finish in turn.
 			logger.debug("Joining threads");
@@ -273,6 +312,9 @@ public class Boss {
 			while(threads.hasNext()) {
 				Thread thread = threads.next();
 				try { thread.join(); } catch(Exception e) { logger.error("Interrupted joining thread."); }
+			}
+			if(this.collecting) {
+				try { this.emitterThread.join(); } catch(Exception e) { logger.error("Interrupted joining emitter thread."); }
 			}
 		}
 	}

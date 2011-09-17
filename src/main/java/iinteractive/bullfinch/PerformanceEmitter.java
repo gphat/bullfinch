@@ -3,31 +3,26 @@ package iinteractive.bullfinch;
 import iinteractive.kestrel.Client;
 
 import java.io.IOException;
-import java.io.StringReader;
-import java.util.Iterator;
 
-import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A minion is a threadified instance of a Worker that knows how to talk to the
- * kestrel queue.
+ * A thread that empties the performance collector to a remote queue.
  *
  * @author gphat
  *
  */
-public class Minion implements Runnable {
+public class PerformanceEmitter implements Runnable {
 
-	static Logger logger = LoggerFactory.getLogger(Minion.class);
+	static Logger logger = LoggerFactory.getLogger(PerformanceEmitter.class);
 	private PerformanceCollector collector;
 	private String queueName;
-	private Worker worker;
 	private Client kestrel;
-	private int timeout;
 	private JSONParser parser;
 
+	private int timeout = 60;
 	private int retries = 0;
 	private int retryTime = 20;
 	private int retryAttempts = 5;
@@ -50,28 +45,25 @@ public class Minion implements Runnable {
 	}
 
 	/**
-	 * Create a new minion.
+	 * Create a new emitter.
 	 *
 	 * @param client  Pre-connected Kestrel client
 	 * @param queueName Name of the queue to talk to
 	 * @param worker The worker instance we're wrapping
 	 * @param timeout The timeout for waiting on the queue
 	 */
-	public Minion(PerformanceCollector collector, Client client, String queueName, Worker worker, int timeout) {
+	public PerformanceEmitter(PerformanceCollector collector, Client client, String queueName) {
 
 		this.collector = collector;
 		this.queueName = queueName;
 		this.kestrel = client;
-		this.worker = worker;
-		this.timeout = timeout;
 
 		this.parser = new JSONParser();
 	}
 
 	/**
-	 * Run the thread.  This method will call a get() on the queue, waiting on
-	 * the timeout.  When it gets a message it will pass it off to the worker
-	 * to handle.
+	 * Run the thread.  This method will sleep for TIMEOUT seconds, then
+	 * attempt to empty out the collector.
 	 *
 	 * Note: If an Exception is caught in communicating with the kestrel queue
 	 * then we'll make use of retryTime and retryAttempts.  First, we'll sleep
@@ -81,43 +73,32 @@ public class Minion implements Runnable {
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		logger.debug("Began minion with retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
+		logger.debug("Began emmitter thread with time of " + this.timeout + ", retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
 
 		try {
 			// We are using nested tries because we want to attempt to reconnect
 			// on some connections.
 			try {
 				while(!Thread.currentThread().isInterrupted() && !cancelled) {
-					String val = this.kestrel.get(this.queueName, this.timeout);
 
-					if(val != null) {
-						logger.debug("Got item from queue:\n" + val);
-						JSONObject request = (JSONObject) parser.parse(new StringReader(val));
+					// Sleep for a bit.
+					Thread.sleep(this.timeout * 1000);
 
-						// Try and get the response queue.
-						String responseQueue = (String) request.get("response_queue");
-						if(responseQueue == null) {
-							throw new Exception("Requests must contain a response queue!");
-						}
-						logger.debug("Response will go to " + responseQueue);
+					logger.debug("Emitter expired.");
 
-						// Get a list of items back from the worker
-						Iterator<String> items = this.worker.handle(collector, request);
-						// Send those items back into the queue
+					String item = collector.poll();
+					int count = 0;
+					while(item != null) {
+						logger.debug("Got tick from collector:\n" + item);
 
-						long start = System.currentTimeMillis();
-						while(items.hasNext()) {
-							this.kestrel.put(responseQueue, items.next());
-						}
-						collector.add(
-							"ResultSet iteration and queue insertion",
-							System.currentTimeMillis() - start,
-							(String) request.get("tracer")
-						);
-						// Top if off with an EOF.
-						this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
-						// Finally, confirm the item we took off the queue.
-						this.kestrel.confirm(this.queueName, 1);
+						// Put the item in the queue
+						this.kestrel.put(this.queueName, item);
+						// Try and get another item
+						count++;
+						item = collector.poll();
+					}
+					if(count > 0) {
+						logger.debug("Removed " + count + " items from the queue.");
 					}
 					logger.debug("Timeout expired, cycling");
 					// Reset the retry counter, since we had a successful cycle.

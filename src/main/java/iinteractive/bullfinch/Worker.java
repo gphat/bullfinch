@@ -25,5 +25,5 @@ public interface Worker {
 	 * @return An iterator of strings, suitable for returning to the caller.
 	 * @throws Exception
 	 */
-	public Iterator<String> handle(HashMap<String,Object> request) throws Exception;
+	public Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws Exception;
 }

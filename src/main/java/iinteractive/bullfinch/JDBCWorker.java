@@ -142,20 +142,35 @@ public class JDBCWorker implements Worker {
 	 * @param request The request as a post-json-parsed-hashmap.
 	 * @return An iterator for sending the response back.
 	 */
-	public Iterator<String> handle(HashMap<String,Object> request) throws Exception {
+	public Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws Exception {
 
 		ArrayList<String> list = new ArrayList<String>();
 
 		Connection conn = null;
 		try {
 			// Grab a connection from the pool
+			long connStart = System.currentTimeMillis();
 			conn = this.ds.getConnection();
+			collector.add(
+				"Connection retrieval",
+				System.currentTimeMillis() - connStart,
+				(String) request.get("tracer")
+			);
+
 
 			// Get the resultset back and transfer it's content into a list so
 			// that we can return an iterator AFTER closing the connection.
+			long start = System.currentTimeMillis();
 			ResultSet rs = bindAndExecuteQuery(conn, request);
+			collector.add(
+				"Query preparation and execution",
+				System.currentTimeMillis() - start,
+				(String) request.get("tracer")
+			);
 
-			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(rs);
+			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
+				(String) request.get("tracer"), rs
+			);
 			while(wrapper.hasNext()) {
 				list.add(wrapper.next());
 			}
