@@ -1,9 +1,10 @@
 {
     "config_refresh_seconds": 300,
+	"collect_performance": true,
     "workers" : [
         {
             "name" : "JDBC Worker",
-            "kestrel_host" : "172.16.13.128",
+            "kestrel_host" : "172.16.49.130",
             "kestrel_port" : 2222,
             "worker_class" : "iinteractive.bullfinch.JDBCWorker",
             "worker_count" : 2,
