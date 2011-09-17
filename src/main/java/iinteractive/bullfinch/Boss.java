@@ -28,7 +28,7 @@ public class Boss {
 	static Logger logger = LoggerFactory.getLogger(Boss.class);
 
 	private HashMap<String,HashMap<Minion,Thread>> minionGroups;
-	//private Thread kestrelThread;
+
 	private long configRefreshSeconds = 300;
 
 	public static void main(String[] args) {
@@ -96,7 +96,7 @@ public class Boss {
 	/**
 	 * Create a new Boss object.
 	 *
-	 * @param config Configuration (as a hashmap)
+	 * @param config Configuration file URL
 	 */
 	public Boss(URL configFile) throws Exception {
 
@@ -122,11 +122,17 @@ public class Boss {
 		// over the workers and spin off each one in turn.
 		while(workers.hasNext()) {
 			HashMap<String,Object> workerConfig = (HashMap<String,Object>) workers.next();
-			prepare(workerConfig);
+			prepareWorker(workerConfig);
 		}
 	}
 
-	private void prepare(HashMap<String,Object> workConfig)	throws Exception {
+	/**
+	 * Prepare a worker.
+	 *
+	 * @param workConfig The workers config.
+	 * @throws Exception
+	 */
+	private void prepareWorker(HashMap<String,Object> workConfig)	throws Exception {
 
 		String name = (String) workConfig.get("name");
 		if(name == null) {
