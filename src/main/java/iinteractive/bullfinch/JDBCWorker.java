@@ -146,6 +146,9 @@ public class JDBCWorker implements Worker {
 
 		ArrayList<String> list = new ArrayList<String>();
 
+		String tracer = (String) request.get("tracer");
+		System.out.println("ASDSAD :" + tracer);
+
 		Connection conn = null;
 		try {
 			// Grab a connection from the pool
@@ -154,7 +157,7 @@ public class JDBCWorker implements Worker {
 			collector.add(
 				"Connection retrieval",
 				System.currentTimeMillis() - connStart,
-				(String) request.get("tracer")
+				tracer
 			);
 
 
@@ -165,7 +168,7 @@ public class JDBCWorker implements Worker {
 			collector.add(
 				"Query preparation and execution",
 				System.currentTimeMillis() - start,
-				(String) request.get("tracer")
+				tracer
 			);
 
 			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
@@ -180,6 +183,9 @@ public class JDBCWorker implements Worker {
 			// key and the message as the value.
 			JSONObject obj = new JSONObject();
 			obj.put("ERROR", e.getMessage());
+			if(tracer != null) {
+				obj.put("tracer", tracer);
+			}
 			list.add(obj.toString());
 		} finally {
 			if(conn != null) {
