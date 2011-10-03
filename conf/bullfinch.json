@@ -1,5 +1,4 @@
 {
-<<<<<<< Updated upstream
     "config_refresh_seconds": 300,
 	"performance": {
 		"collect": true,
@@ -8,9 +7,6 @@
 		"queue": "metrics"
 	},
 	"collect_performance": true,
-=======
-    "config_refresh_seconds": 3,
->>>>>>> Stashed changes
     "workers" : [
         {
             "name" : "JDBC Worker",
