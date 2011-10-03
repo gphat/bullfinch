@@ -1,4 +1,5 @@
 {
+<<<<<<< Updated upstream
     "config_refresh_seconds": 300,
 	"performance": {
 		"collect": true,
@@ -7,6 +8,9 @@
 		"queue": "metrics"
 	},
 	"collect_performance": true,
+=======
+    "config_refresh_seconds": 3,
+>>>>>>> Stashed changes
     "workers" : [
         {
             "name" : "JDBC Worker",
@@ -18,17 +22,17 @@
             "timeout" : 10000,
             "options"  : {
                 "connection" : {
-                    "driver" : "org.hsqldb.jdbcDriver",
-                    "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",
-                    "uid" : "SA",
-                    "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
+                    "driver" : "com.mysql.jdbc.Driver",
+                    "dsn" : "jdbc:mysql://localhost/labor",
+                    "uid" : "root",
+                    "validation" : "SELECT 1"
                 },
                 "statements" : {
                     "badTable": {
                         "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
                     },
                     "goodTable": {
-                        "sql": "SELECT current_timestamp FROM public.TEST_TABLE",
+                        "sql": "SELECT name FROM account_status_type",
                     },
                     "getInt" : {
                         "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",
