@@ -73,7 +73,10 @@ public class Boss {
 					logger.debug("Checking config file age");
 					URLConnection urlConn = configFile.openConnection();
 					long newModified = urlConn.getLastModified();
-		            if(lastModified != newModified) {
+					// Use < (was using !=) because java will just return a 0
+					// for modified time when it can't find the file or can't
+					// connect.
+					if(lastModified < newModified) {
 
 		            	logger.debug("Config file has changed, restart.");
 		            	lastModified = newModified;
