@@ -239,38 +239,6 @@ that instance's turn to handle it.  This method must return an
 `Iterator<String>`.  This allows you to either create a list or create your own
 `Iterator` implementation that actually iterates over something.
 
-# JDBCWorker #
-
-The JDBC worker expects a config like this:
-
-    "options"  : {
-        "connection" : {
-            "driver" : "com.mysql.jdbc.Driver",
-            "dsn" : "jdbc:mysql://localhost/labor",
-            "uid" : "root",
-            "validation" : "SELECT version()"
-        },
-        "statements" : {
-            "getAllAddresses" : {
-                "sql"    : "SELECT * FROM address",
-            },
-            "getAllActiveECodesByPage" : {
-                "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
-                "params" : [ "INTEGER", "INTEGER" ]
-            }
-        }
-    }
-
-## TYPES
-
-The JDBC worker only understands certain types because it's using JSON.  You can use the
-following types as params for your queries:
-
-* BOOLEAN
-* INTEGER
-* NUMBER
-* STRING
-
 Note that Number is a double in Javaland, so use it for non-integer stuff.
 
 ## validation
