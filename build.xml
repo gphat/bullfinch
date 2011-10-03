@@ -71,8 +71,11 @@
 
  <target name="dist" depends="test">
   <exec executable="git" outputproperty="gitversion">
-   <arg value="describe" />
-   <arg value="--abbrev=0" />
+   <arg value="for-each-ref" />
+   <arg value="--sort=authordate" />
+   <arg value="--format=%(refname:short)" />
+   <arg value="--count=1" />
+   <arg value="refs/tags" />
   </exec>
   <jar destfile="${build}/bullfinch-${gitversion}.jar" basedir="${build}" />
  </target>
