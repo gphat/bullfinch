@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import iinteractive.bullfinch.JDBCWorker;
+import iinteractive.bullfinch.PerformanceCollector;
 
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -26,6 +27,7 @@ public class Simple {
 
 	private Connection conn;
 	private JDBCWorker worker;
+	private PerformanceCollector pc = new PerformanceCollector("test", false);
 
 	@Before
 	public void createDatabase() {
@@ -85,7 +87,7 @@ public class Simple {
 			HashMap<String,Object> request = new HashMap<String,Object>();
 			request.put("statement", "getInt");
 
-			Iterator<String> iter = worker.handle(request);
+			Iterator<String> iter = worker.handle(pc, request);
 
 			assertEquals("Got error for missing params", "{\"ERROR\":\"Statement getInt requires params\"}", iter.next());
 
@@ -106,7 +108,7 @@ public class Simple {
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getInt\",\"params\":[12]}");
 
-			Iterator<String> iter = worker.handle(request);
+			Iterator<String> iter = worker.handle(pc, request);
 			assertEquals("getInt result", "{\"row_data\":{\"AN_INT\":12},\"row_num\":1}", iter.next());
 			assertFalse("no more rows", iter.hasNext());
 
@@ -127,7 +129,7 @@ public class Simple {
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getFloat\",\"params\":[3.14]}");
 
-			Iterator<String> iter = worker.handle(request);
+			Iterator<String> iter = worker.handle(pc, request);
 			assertEquals("getFloat result", "{\"row_data\":{\"A_FLOAT\":3.14},\"row_num\":1}", iter.next());
 			assertFalse("no more rows", iter.hasNext());
 
@@ -148,7 +150,7 @@ public class Simple {
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getBool\",\"params\":[true]}");
 
-			Iterator<String> iter = worker.handle(request);
+			Iterator<String> iter = worker.handle(pc, request);
 			assertEquals("getBool result", "{\"row_data\":{\"A_BOOL\":true},\"row_num\":1}", iter.next());
 			assertFalse("no more rows", iter.hasNext());
 
@@ -169,7 +171,7 @@ public class Simple {
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getString\",\"params\":[\"cory\"]}");
 
-			Iterator<String> iter = worker.handle(request);
+			Iterator<String> iter = worker.handle(pc, request);
 			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":1}", iter.next());
 			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":2}", iter.next());
 			assertFalse("no more rows", iter.hasNext());
@@ -186,7 +188,7 @@ public class Simple {
 		JDBCWorker worker = this.worker;
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"badTable\"}");
-			Iterator<String> iter = worker.handle(request);
+			Iterator<String> iter = worker.handle(pc, request);
 			assertEquals("error", "{\"ERROR\":\"Borrow prepareStatement from pool failed\"}", iter.next());
 			assertFalse("no more rows", iter.hasNext());
 		} catch (Exception e) {
@@ -195,7 +197,7 @@ public class Simple {
 
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"goodTable\"}");
-			Iterator<String> iter = worker.handle(request);
+			Iterator<String> iter = worker.handle(pc, request);
 			assertTrue("follow up query", iter.next().startsWith("{\"row_data\":"));
 		} catch(Exception e) {
 			fail(e.getMessage());

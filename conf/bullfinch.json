@@ -1,12 +1,11 @@
 {
     "config_refresh_seconds": 300,
 	"performance": {
-		"collect": true,
+		"collect": false,
         "kestrel_host" : "172.16.49.130",
         "kestrel_port" : 2222,
 		"queue": "metrics"
 	},
-	"collect_performance": true,
     "workers" : [
         {
             "name" : "JDBC Worker",
