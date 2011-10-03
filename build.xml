@@ -71,9 +71,8 @@
 
  <target name="dist" depends="test">
   <exec executable="git" outputproperty="gitversion">
-   <arg value="rev-parse" />
-   <arg value="--short" />
-   <arg value="HEAD" />
+   <arg value="describe" />
+   <arg value="--abbrev=0" />
   </exec>
   <jar destfile="${build}/bullfinch-${gitversion}.jar" basedir="${build}" />
  </target>
