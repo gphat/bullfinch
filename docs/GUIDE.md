@@ -74,6 +74,17 @@ Generally speaking, the best idea is for you to DELETE the response queue
 after you encounter the above record.  Since it only exists to satisfy the
 request you specified.
 
+# TRANSACTIONAL STUFF
+
+Bullfinch does not confirm an item in the queue (removing it) until it has
+processed a request and returned all of it's response, right up to the final
+EOF.  This means that if you are acting in a transactional type way, you should
+not consider anything processed until you have sent a request and received
+your response plus an EOF.
+
+If the worker dies mid-process, then the item will remain in the queue, as it
+is unconfirmed.
+
 # PERFORMANCE
 
 Kestrel's docs contain benchmarks for some of it's load testing, so look there
