@@ -67,3 +67,35 @@ Bullfinch will include this tracer in any performance messages as well as
 any responses by workers*, such as the JDBC worker.
 
 * Note, this isn't automatic.  Each worker must include the feature.
+
+# COLLECTION
+
+Bullfinch includes an **experimental** feature where the various operations
+it performs will log their performance results and emit them into a kestrel
+collection for gathering by an outside entity.
+
+This feature can be enabled by providing a performance section in the config
+file:
+
+	"performance": {
+		"collect": true,
+        "kestrel_host" : "172.16.49.130", // the host to connect to
+        "kestrel_port" : 2222, // the port
+		"queue": "metrics", // the queue to put stuff in
+		"timeout": 30, // time to sleep between sends of data
+		// Optional stuff
+		"retry_time": 30, // time between retries
+		"retry_attempts": 5 // number of retry attempts
+	},
+
+If enabled then Bullfinch will collect information about operations and send
+them to the specified queue every $timeout seconds.  The data emitted is JSON
+which looks like this:
+
+    {
+        "name": "foobar", // the hostname
+        "occurred": "2011-12-23T07:33:02Z", // ISO8601 date that the thing happened,
+        "activity": "Connection retrieval", // the thing bullfinch did
+        "elapsed": 1234, // milliseconds the activity took
+        "tracer": "asdasd" // optionally present tracer from request, see TRACING
+    }
