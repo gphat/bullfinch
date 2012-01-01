@@ -84,58 +84,78 @@ public class Minion implements Runnable {
 		logger.debug("Began minion with retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
 
 		try {
-			// We are using nested tries because we want to attempt to reconnect
-			// on some connections.
-			try {
-				while(!Thread.currentThread().isInterrupted() && !cancelled) {
-					String val = this.kestrel.get(this.queueName, this.timeout);
+			while(!Thread.currentThread().isInterrupted() && !cancelled) {
+				String val = this.kestrel.get(this.queueName, this.timeout);
 
-					if(val != null) {
-						logger.debug("Got item from queue:\n" + val);
-						JSONObject request = (JSONObject) parser.parse(new StringReader(val));
-
-						// Try and get the response queue.
-						String responseQueue = (String) request.get("response_queue");
-						if(responseQueue == null) {
-							throw new Exception("Requests must contain a response queue!");
-						}
-						logger.debug("Response will go to " + responseQueue);
-
-						// Get a list of items back from the worker
-						Iterator<String> items = this.worker.handle(collector, request);
-						// Send those items back into the queue
-
-						long start = System.currentTimeMillis();
-						while(items.hasNext()) {
-							this.kestrel.put(responseQueue, items.next());
-						}
-						collector.add(
-							"ResultSet iteration and queue insertion",
-							System.currentTimeMillis() - start,
-							(String) request.get("tracer")
-						);
-						// Top if off with an EOF.
-						this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
-						// Finally, confirm the item we took off the queue.
-						this.kestrel.confirm(this.queueName, 1);
+				if (val != null) {
+					try {
+						process(val);
+					} catch (ProcessTimeoutException e) {
+						// ignore a timeout exception
 					}
+
+					// confirm the item we took off the queue.
+					this.kestrel.confirm(this.queueName, 1);
+				} else {
 					logger.debug("Timeout expired, cycling");
-					// Reset the retry counter, since we had a successful cycle.
-					retries = 0;
 				}
-			} catch(InterruptedException e) {
-				// In case we get an interrupt for whatever reason
-				logger.info("Caught interrupt, exiting.");
-				return;
-			} catch(Exception e) {
-				logger.error("Got an Exception, attempting to retry", e);
-				pauseForRetry(e);
 			}
+// exception java.lang.InterruptedException is never thrown in body of corresponding try statement
+//		} catch(InterruptedException e) {
+//			logger.info("Caught interrupt, exiting.");
+//			return;
 		} catch(Exception e) {
 			logger.error("Error in worker thread, exiting", e);
 			return;
 		}
 	}
+
+	private void process(String val) throws Exception {
+		JSONObject request = null;
+
+		logger.debug("Got item from queue:\n" + val);
+
+		try {
+			request = (JSONObject) parser.parse(new StringReader(val));
+		} catch (Error e) {
+			logger.debug("unable to parse input, ignoring");
+			return;
+		} catch (Exception e) {
+			logger.debug("unable to parse input, ignoring");
+			return;
+		}
+
+		// Try and get the response queue.
+		String responseQueue = (String) request.get("response_queue");
+		if(responseQueue == null) {
+			logger.debug("request did not contain a response queue");
+			return;
+		}
+		logger.debug("Response will go to " + responseQueue);
+
+		// Get a list of items back from the worker
+		Iterator<String> items = this.worker.handle(collector, request);
+		// Send those items back into the queue
+
+		long start = System.currentTimeMillis();
+		while(items.hasNext()) {
+			this.kestrel.put(responseQueue, items.next());
+		}
+		collector.add(
+			"ResultSet iteration and queue insertion",
+			System.currentTimeMillis() - start,
+			(String) request.get("tracer")
+		);
+		// Top if off with an EOF.
+		this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
+	}
+
+//		// Reset the retry counter, since we had a successful cycle.
+//		retries = 0;
+//	} catch(Exception e) {
+//		logger.error("Got an Exception, attempting to retry", e);
+//		pauseForRetry(e);
+//	}
 
 	private void pauseForRetry(Exception e) throws IOException {
 
@@ -154,6 +174,7 @@ public class Minion implements Runnable {
 		// Sleep for the prescribed retry time
 		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
 		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
+		logger.warn("I'm awake!");
 
 		this.kestrel.disconnect();
 		this.kestrel.connect();
