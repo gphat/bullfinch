@@ -42,6 +42,9 @@
                         "sql"    : "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?",
                         "params" : [ "STRING" ]
                     },
+                    "addOne": {
+                        "sql"    : "INSERT INTO PUBLIC.TEST_TABLE (an_int, a_float, a_bool, a_string) VALUES (40, 8.94, true, 'fred')",
+                    }
                 }
             }
         }

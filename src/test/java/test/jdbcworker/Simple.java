@@ -204,6 +204,18 @@ public class Simple {
 		}
 	}
 
+	@Test
+	public void testInsert() {
+		JDBCWorker worker = this.worker;
+		try {
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"addOne\"}");
+			Iterator<String> iter = worker.handle(pc,  request);
+			assertTrue("EOF only", iter.next().startsWith("{\"EOF"));
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+	}
+
 	@After
 	public void dropTable() {
 

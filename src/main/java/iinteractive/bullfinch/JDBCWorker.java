@@ -165,17 +165,20 @@ public class JDBCWorker implements Worker {
 			// that we can return an iterator AFTER closing the connection.
 			long start = System.currentTimeMillis();
 			ResultSet rs = bindAndExecuteQuery(conn, request);
-			collector.add(
-				"Query preparation and execution",
-				System.currentTimeMillis() - start,
-				tracer
-			);
 
-			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
-				(String) request.get("tracer"), rs
-			);
-			while(wrapper.hasNext()) {
-				list.add(wrapper.next());
+			if(rs != null) {
+				collector.add(
+					"Query preparation and execution",
+					System.currentTimeMillis() - start,
+					tracer
+				);
+
+				JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
+					(String) request.get("tracer"), rs
+				);
+				while(wrapper.hasNext()) {
+					list.add(wrapper.next());
+				}
 			}
 		} catch(Exception e) {
 			logger.error("Got an exception from SQL execution", e);
@@ -265,6 +268,8 @@ public class JDBCWorker implements Worker {
 			}
 		}
 
-		return prepStatement.executeQuery();
+		prepStatement.execute();
+
+		return prepStatement.getResultSet();
 	}
 }
