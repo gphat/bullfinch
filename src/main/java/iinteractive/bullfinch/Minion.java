@@ -1,6 +1,7 @@
 package iinteractive.bullfinch;
 
 import iinteractive.kestrel.Client;
+import iinteractive.kestrel.KestrelException;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -28,16 +29,9 @@ public class Minion implements Runnable {
 	private int timeout;
 	private JSONParser parser;
 
-	private int retries = 0;
 	private int retryTime = 20;
-	private int retryAttempts = 5;
 
 	private volatile boolean cancelled = false;
-
-	public void setRetryAttempts(int retryAttempts) {
-
-		this.retryAttempts = retryAttempts;
-	}
 
 	public void setRetryTime(int retryTime) {
 
@@ -81,10 +75,19 @@ public class Minion implements Runnable {
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		logger.debug("Began minion with retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
+		logger.debug("Began minion with retry time of " + this.retryTime);
 
 		try {
-			while(!Thread.currentThread().isInterrupted() && !cancelled) {
+			this.loop();
+		} catch (Exception e) {
+			logger.error("Error in worker thread, exiting", e);
+			return;
+		}
+	}
+
+	private void loop() throws Exception {
+		while(!Thread.currentThread().isInterrupted() && !cancelled) {
+			try {
 				String val = this.kestrel.get(this.queueName, this.timeout);
 
 				if (val != null) {
@@ -99,14 +102,13 @@ public class Minion implements Runnable {
 				} else {
 					logger.debug("Timeout expired, cycling");
 				}
+			} catch (KestrelException e) {
+				logger.error("Error in worker thread, reconnecting", e);
+				pauseForRetry();
+			} catch (IOException e) {
+				logger.error("Error in worker thread, reconnecting", e);
+				pauseForRetry();
 			}
-// exception java.lang.InterruptedException is never thrown in body of corresponding try statement
-//		} catch(InterruptedException e) {
-//			logger.info("Caught interrupt, exiting.");
-//			return;
-		} catch(Exception e) {
-			logger.error("Error in worker thread, exiting", e);
-			return;
 		}
 	}
 
@@ -150,36 +152,20 @@ public class Minion implements Runnable {
 		this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
 	}
 
-//		// Reset the retry counter, since we had a successful cycle.
-//		retries = 0;
-//	} catch(Exception e) {
-//		logger.error("Got an Exception, attempting to retry", e);
-//		pauseForRetry(e);
-//	}
-
-	private void pauseForRetry(Exception e) throws IOException {
-
-		logger.debug("Currently at " + retries + " retries.");
-
-		// Check if we can retry
-		if(this.retries >= this.retryAttempts) {
-			// Abort! We can't get a solid connection.
-			logger.error("Retry attempts exceeded, exiting", e);
-			throw new IOException(e);
-		}
-
+	private void pauseForRetry() {
 		// Yield real quick for other threads
 		Thread.yield();
 
 		// Sleep for the prescribed retry time
 		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
 		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
-		logger.warn("I'm awake!");
 
-		this.kestrel.disconnect();
-		this.kestrel.connect();
-
-		this.retries++;
+		try {
+			this.kestrel.disconnect();
+			this.kestrel.connect();
+		} catch (Exception e) {
+			logger.warn("Caught " + e.getClass().getName() + " while trying to reconnect");
+		}
 	}
 
 	public void cancel() {
