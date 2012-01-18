@@ -13,10 +13,11 @@
             "subscribe_to" : "test-net-kestrel",
             "timeout" : 10000,
             "options"  : {
-                "connection" : {                                              
-                     "driver" : "org.hsqldb.jdbcDriver",                       
-                     "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",         
-                     "uid" : "SA",                                             
+                "default_process_by_ttl" : "PT300S",
+                "connection" : {
+                     "driver" : "org.hsqldb.jdbcDriver",
+                     "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",
+                     "uid" : "SA",
                      "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
                  },
                 "statements" : {

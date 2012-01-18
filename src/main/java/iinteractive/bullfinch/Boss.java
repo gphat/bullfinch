@@ -194,8 +194,6 @@ public class Boss {
 
 		Long retryTimeLng = (Long) workConfig.get("retry_time");
 
-		Long retryAttemptsLng = (Long) workConfig.get("retry_attempts");
-
 		// Get the config options to pass to the worker
 		@SuppressWarnings("unchecked")
 		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
@@ -223,9 +221,6 @@ public class Boss {
 			// Set some options, if necessary.
 			if(retryTimeLng != null) {
 				minion.setRetryTime(retryTimeLng.intValue());
-			}
-			if(retryAttemptsLng != null) {
-				minion.setRetryAttempts(retryAttemptsLng.intValue());
 			}
 
 			workers.put(minion,	new Thread(minion));

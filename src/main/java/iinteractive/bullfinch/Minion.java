@@ -1,6 +1,7 @@
 package iinteractive.bullfinch;
 
 import iinteractive.kestrel.Client;
+import iinteractive.kestrel.KestrelException;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -28,16 +29,9 @@ public class Minion implements Runnable {
 	private int timeout;
 	private JSONParser parser;
 
-	private int retries = 0;
 	private int retryTime = 20;
-	private int retryAttempts = 5;
 
 	private volatile boolean cancelled = false;
-
-	public void setRetryAttempts(int retryAttempts) {
-
-		this.retryAttempts = retryAttempts;
-	}
 
 	public void setRetryTime(int retryTime) {
 
@@ -81,73 +75,84 @@ public class Minion implements Runnable {
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		logger.debug("Began minion with retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
+		logger.debug("Began minion with retry time of " + this.retryTime);
 
 		try {
-			// We are using nested tries because we want to attempt to reconnect
-			// on some connections.
-			try {
-				while(!Thread.currentThread().isInterrupted() && !cancelled) {
-					String val = this.kestrel.get(this.queueName, this.timeout);
-
-					if(val != null) {
-						logger.debug("Got item from queue:\n" + val);
-						JSONObject request = (JSONObject) parser.parse(new StringReader(val));
-
-						// Try and get the response queue.
-						String responseQueue = (String) request.get("response_queue");
-						if(responseQueue == null) {
-							throw new Exception("Requests must contain a response queue!");
-						}
-						logger.debug("Response will go to " + responseQueue);
-
-						// Get a list of items back from the worker
-						Iterator<String> items = this.worker.handle(collector, request);
-						// Send those items back into the queue
-
-						long start = System.currentTimeMillis();
-						while(items.hasNext()) {
-							this.kestrel.put(responseQueue, items.next());
-						}
-						collector.add(
-							"ResultSet iteration and queue insertion",
-							System.currentTimeMillis() - start,
-							(String) request.get("tracer")
-						);
-						// Top if off with an EOF.
-						this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
-						// Finally, confirm the item we took off the queue.
-						this.kestrel.confirm(this.queueName, 1);
-					}
-					logger.debug("Timeout expired, cycling");
-					// Reset the retry counter, since we had a successful cycle.
-					retries = 0;
-				}
-			} catch(InterruptedException e) {
-				// In case we get an interrupt for whatever reason
-				logger.info("Caught interrupt, exiting.");
-				return;
-			} catch(Exception e) {
-				logger.error("Got an Exception, attempting to retry", e);
-				pauseForRetry(e);
-			}
-		} catch(Exception e) {
+			this.loop();
+		} catch (Exception e) {
 			logger.error("Error in worker thread, exiting", e);
 			return;
 		}
 	}
 
-	private void pauseForRetry(Exception e) throws IOException {
+	private void loop() throws Exception {
+		while(!Thread.currentThread().isInterrupted() && !cancelled) {
+			try {
+				String val = this.kestrel.get(this.queueName, this.timeout);
 
-		logger.debug("Currently at " + retries + " retries.");
+				if (val != null) {
+					try {
+						process(val);
+					} catch (ProcessTimeoutException e) {
+						// ignore a timeout exception
+					}
 
-		// Check if we can retry
-		if(this.retries >= this.retryAttempts) {
-			// Abort! We can't get a solid connection.
-			logger.error("Retry attempts exceeded, exiting", e);
-			throw new IOException(e);
+					// confirm the item we took off the queue.
+					this.kestrel.confirm(this.queueName, 1);
+				} else {
+					logger.debug("Timeout expired, cycling");
+				}
+			} catch (KestrelException e) {
+				logger.error("Error in worker thread, reconnecting", e);
+				pauseForRetry();
+			} catch (IOException e) {
+				logger.error("Error in worker thread, reconnecting", e);
+				pauseForRetry();
+			}
+		}
+	}
+
+	private void process(String val) throws Exception {
+		JSONObject request = null;
+
+		logger.debug("Got item from queue:\n" + val);
+
+		try {
+			request = (JSONObject) parser.parse(new StringReader(val));
+		} catch (Error e) {
+			logger.debug("unable to parse input, ignoring");
+			return;
+		} catch (Exception e) {
+			logger.debug("unable to parse input, ignoring");
+			return;
 		}
 
+		// Try and get the response queue.
+		String responseQueue = (String) request.get("response_queue");
+		if(responseQueue == null) {
+			logger.debug("request did not contain a response queue");
+			return;
+		}
+		logger.debug("Response will go to " + responseQueue);
+
+		// Get a list of items back from the worker
+		Iterator<String> items = this.worker.handle(collector, request);
+		// Send those items back into the queue
+
+		long start = System.currentTimeMillis();
+		while(items.hasNext()) {
+			this.kestrel.put(responseQueue, items.next());
+		}
+		collector.add(
+			"ResultSet iteration and queue insertion",
+			System.currentTimeMillis() - start,
+			(String) request.get("tracer")
+		);
+		// Top if off with an EOF.
+		this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
+	}
+
+	private void pauseForRetry() {
 		// Yield real quick for other threads
 		Thread.yield();
 
@@ -155,10 +160,12 @@ public class Minion implements Runnable {
 		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
 		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
 
-		this.kestrel.disconnect();
-		this.kestrel.connect();
-
-		this.retries++;
+		try {
+			this.kestrel.disconnect();
+			this.kestrel.connect();
+		} catch (Exception e) {
+			logger.warn("Caught " + e.getClass().getName() + " while trying to reconnect");
+		}
 	}
 
 	public void cancel() {
