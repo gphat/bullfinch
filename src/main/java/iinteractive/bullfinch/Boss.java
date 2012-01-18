@@ -54,9 +54,7 @@ public class Boss {
 			boss.start();
 
 			while(true) {
-				logger.info("about to sleep " + boss.getConfigRefreshSeconds() + " seconds!");
 				Thread.sleep(boss.getConfigRefreshSeconds() * 1000);
-				logger.info("i'm awake, bitch.  make me some pancakes.");
 
 				if (boss.isConfigStale()) {
 					logger.info("Restarting due to config file changes");
