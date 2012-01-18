@@ -11,6 +11,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.ArrayList;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -35,6 +36,8 @@ public class Boss {
 	private boolean collecting = false;
 	private Thread emitterThread;
 	private PerformanceEmitter emitter;
+	private ArrayList<URL> configURLs;
+	private ArrayList<Long> configTimestamps;
 
 	public static void main(String[] args) {
 
@@ -43,23 +46,8 @@ public class Boss {
 			return;
 		}
 
-		URL configFile;
-		long lastModified;
 		try {
-			configFile = new URL(args[0]);
-			URLConnection urlConn = configFile.openConnection();
-			lastModified = urlConn.getLastModified();
-			logger.debug("Last modified: " + lastModified);
-		} catch (MalformedURLException e) {
-			logger.error("Must prode a well-formed url as a config file argument: " + args[0], e);
-			return;
-		} catch(IOException e) {
-			logger.error("Can't open config file", e);
-			return;
-		}
-
-		try {
-			Boss boss = new Boss(configFile);
+			Boss boss = new Boss(args[0]);
 
 			// Start all the threads now that we've verified that all were
 			// properly readied.
@@ -68,31 +56,11 @@ public class Boss {
 			while(true) {
 				Thread.sleep(boss.getConfigRefreshSeconds() * 1000);
 
-				boolean shouldReload = false;
-				try {
-					logger.debug("Checking config file age");
-					URLConnection urlConn = configFile.openConnection();
-					long newModified = urlConn.getLastModified();
-					// Use < (was using !=) because java will just return a 0
-					// for modified time when it can't find the file or can't
-					// connect.
-					if(lastModified < newModified) {
-
-		            	logger.debug("Config file has changed, restart.");
-		            	lastModified = newModified;
-		            	// Configuration has changed, restart!
-		            	shouldReload = true;
-		            }
-				} catch(Exception e) {
-					shouldReload = false;
-					logger.warn("Error getting config file, ignoring.", e);
-				}
-
-				if(shouldReload) {
+				if (boss.isConfigStale()) {
 					logger.info("Restarting due to config file changes");
-					shouldReload = false; // Reset!
+
 					boss.stop();
-					boss = new Boss(configFile);
+					boss = new Boss(args[0]);
 					boss.start();
 				}
 			}
@@ -106,7 +74,9 @@ public class Boss {
 	 *
 	 * @param config Configuration file URL
 	 */
-	public Boss(URL configFile) throws Exception {
+	public Boss(String configFile) throws Exception {
+		configURLs = new ArrayList<URL> ();
+		configTimestamps = new ArrayList<Long> ();
 
 		JSONObject config = readConfigFile(configFile);
 
@@ -114,6 +84,14 @@ public class Boss {
 			logger.error("Failed to load config file.");
 			return;
 		}
+
+		Long configRefreshSecondsLng = (Long) config.get("config_refresh_seconds");
+		if(configRefreshSecondsLng == null) {
+			logger.info("No config_refresh_seconds specified, defaulting to 300");
+			configRefreshSecondsLng = new Long(300);
+		}
+		this.configRefreshSeconds = configRefreshSecondsLng.intValue();
+		logger.debug("Config will refresh in " + this.configRefreshSeconds + " seconds");
 
 		HashMap<String,Object> perfConfig = (HashMap<String,Object>) config.get("performance");
 		if(perfConfig != null) {
@@ -169,6 +147,10 @@ public class Boss {
 	 * @throws Exception
 	 */
 	private void prepareWorker(HashMap<String,Object> workConfig)	throws Exception {
+		String ref = (String) workConfig.get("$ref");
+		if (ref != null) {
+			workConfig = readConfigFile(ref);
+		}
 
 		String name = (String) workConfig.get("name");
 		if(name == null) {
@@ -331,32 +313,55 @@ public class Boss {
 	 * @throws FileNotFoundException
 	 * @throws IOException
 	 */
-	private JSONObject readConfigFile(URL configFile)
+	private JSONObject readConfigFile(String configFile)
 		throws ConfigurationException, FileNotFoundException, IOException {
 
-		logger.debug("Attempting to read " + configFile.toString());
+		URL url = new URL(configFile);
+
+		logger.debug("Attempting to read " + url.toString());
 
 		JSONObject config;
         try {
             JSONParser parser = new JSONParser();
 
+			URLConnection conn = url.openConnection();
+			logger.debug("Last modified: " + conn.getLastModified());
+
             config = (JSONObject) parser.parse(
-            	new InputStreamReader(configFile.openStream())
+            	new InputStreamReader(url.openStream())
             );
 
-    		Long configRefreshSecondsLng = (Long) config.get("config_refresh_seconds");
-    		if(configRefreshSecondsLng == null) {
-    			logger.info("No config_refresh_seconds specified, defaulting to 300");
-    			configRefreshSecondsLng = new Long(300);
-    		}
-    		this.configRefreshSeconds = configRefreshSecondsLng.intValue();
-    		logger.debug("Config will refresh in " + this.configRefreshSeconds + " seconds");
+			configURLs.ensureCapacity(configURLs.size() + 1);
+			configTimestamps.ensureCapacity(configTimestamps.size() + 1);
+
+			configURLs.add(url);
+			configTimestamps.add(new Long (conn.getLastModified()));
         }
         catch ( Exception e ) {
             logger.error("Failed to parse config file", e);
-            throw new ConfigurationException("Failed to parse config file=(" + configFile.toString() + ")");
+            throw new ConfigurationException("Failed to parse config file=(" + url.toString() + ")");
         }
 
         return config;
+	}
+
+	/**
+	 * Check all config file timestamps.
+	 *
+	 * @return A boolean value indicating whether or not the configuration is stale
+	 */
+	private boolean isConfigStale() {
+		boolean stale = false;
+
+		try {
+			for (int i = 0; i < configURLs.size() && !stale; i++)
+				if (configURLs.get(i).openConnection().getLastModified() > configTimestamps.get(i).longValue())
+					stale = true;
+		} catch (Exception e) {
+			logger.warn("Error getting config file, ignoring.", e);
+			stale = false;
+		}
+
+		return stale;
 	}
 }
