@@ -157,7 +157,6 @@ public class JDBCWorker implements Worker {
 		ArrayList<String> list = new ArrayList<String>();
 
 		String tracer = (String) request.get("tracer");
-		System.out.println("ASDSAD :" + tracer);
 
 		Connection conn = null;
 		try {
