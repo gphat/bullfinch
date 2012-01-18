@@ -183,7 +183,6 @@ public class JDBCWorker implements Worker {
 				tracer
 			);
 
-
 			// Get the resultset back and transfer it's content into a list so
 			// that we can return an iterator AFTER closing the connection.
 			long start = System.currentTimeMillis();
@@ -203,15 +202,10 @@ public class JDBCWorker implements Worker {
 					list.add(wrapper.next());
 				}
             }
+            // Check the process timeout again
 			if (dtProcessBy.isBefore(DateTime.now()))
 				throw new ProcessTimeoutException("process-by time exceeded");
 
-			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
-				(String) request.get("tracer"), rs
-			);
-			while(wrapper.hasNext()) {
-				list.add(wrapper.next());
-			}
 		} catch(ProcessTimeoutException e) {
 			logger.error(e.getMessage());
 			throw new ProcessTimeoutException(e.getMessage());
