@@ -9,11 +9,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Date;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 
 /**
  * A worker for executing JDBC statements over kestrel queues.
@@ -30,6 +34,7 @@ public class JDBCWorker implements Worker {
 	private String username;
 	private String password;
 	private String validationQuery;
+	private Duration durTTLProcessByDefault;
 
 	private Phrasebook statementBook;
 
@@ -60,6 +65,11 @@ public class JDBCWorker implements Worker {
 	 * @throws Exception
 	 */
 	public void configure(HashMap<String,Object> config) throws Exception {
+		try {
+			this.durTTLProcessByDefault = Duration.parse((String) config.get("default_process_by_ttl"));
+		} catch (Exception e) {
+			throw new Exception("Configuration contains invalid default_process_by_ttl");
+		}
 
 		@SuppressWarnings("unchecked")
 		HashMap<String,String> connConfig = (HashMap<String,String>) config.get("connection");
@@ -151,6 +161,19 @@ public class JDBCWorker implements Worker {
 
 		Connection conn = null;
 		try {
+			DateTime dtProcessBy;
+
+			try {
+				// try to parse the process-by date
+				dtProcessBy = DateTime.parse((String) request.get("process-by"));
+			} catch (Exception e) {
+				// unable to parse the date, use default of now+ttl instead
+				dtProcessBy = DateTime.now().withDurationAdded(this.durTTLProcessByDefault, 1);
+			}
+
+			if (dtProcessBy.isBefore(DateTime.now()))
+				throw new ProcessTimeoutException("process-by time exceeded");
+
 			// Grab a connection from the pool
 			long connStart = System.currentTimeMillis();
 			conn = this.ds.getConnection();
@@ -179,7 +202,19 @@ public class JDBCWorker implements Worker {
 				while(wrapper.hasNext()) {
 					list.add(wrapper.next());
 				}
+            }
+			if (dtProcessBy.isBefore(DateTime.now()))
+				throw new ProcessTimeoutException("process-by time exceeded");
+
+			JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
+				(String) request.get("tracer"), rs
+			);
+			while(wrapper.hasNext()) {
+				list.add(wrapper.next());
 			}
+		} catch(ProcessTimeoutException e) {
+			logger.error(e.getMessage());
+			throw new ProcessTimeoutException(e.getMessage());
 		} catch(Exception e) {
 			logger.error("Got an exception from SQL execution", e);
 			// In the case of an exception, reply back with an ERROR as the
