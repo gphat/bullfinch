@@ -8,6 +8,7 @@
  <property name="src.tests" value="src/test/java" />
  <property name="temp" value="tmp" />
  <property name="testdir" value="testdir" />
+ <property file="log4j.properties" />
 
  <path id="classpath">
   <fileset dir="${libs}">
@@ -76,7 +77,19 @@
    <arg value="--abbrev=0" />
    <arg value="--match=[^(jenkins)].*" />
   </exec>
-  <jar destfile="${build}/bullfinch-${gitversion}.jar" basedir="${build}" />
+  <manifestclasspath property="manifest.classpath" jarfile="${build}/bullfinch-${gitversion}.jar">
+   <classpath>
+    <fileset dir="${libs}">
+     <include name="**/*.jar"/>
+    </fileset>
+   </classpath>
+  </manifestclasspath>
+  <jar destfile="${build}/bullfinch-${gitversion}.jar" basedir="${build}">
+   <manifest>
+    <attribute name="Main-Class" value="iinteractive.bullfinch.Boss" />
+    <attribute name="Class-Path" value="${manifest.classpath}" />
+   </manifest>
+  </jar>
  </target>
 
 </project>
