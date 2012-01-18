@@ -210,7 +210,7 @@ public class Simple {
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"addOne\"}");
 			Iterator<String> iter = worker.handle(pc,  request);
-			assertTrue("EOF only", iter.next().startsWith("{\"EOF"));
+			assertTrue("EOF only", !iter.hasNext());
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
