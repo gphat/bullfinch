@@ -24,6 +24,8 @@ The JDBC worker's configuration looks like this:
                 // The number of times to reconnect before giving up
                 "retry_attempts": 5
                 "options"  : {
+                    // Requests older than this will be ignored
+                    "default_process_by_ttl" : "PT300S",
                     // JDBC connection information
                     "connection" : {
                         "driver" : "com.mysql.jdbc.Driver",
@@ -60,7 +62,12 @@ may have parameters.  Note that you must use placeholders for them!
 The JDBC worker waits for messages to enter the queue it is watching.  It
 expects the message to look like this:
 
-    { "statement" : "statementName", "params" : [ 12, "foo" ], "response_queue" : "response-blah-blah" }
+    {
+        "statement" : "statementName",
+        "params" : [ 12, "foo" ],
+        "response_queue" : "response-blah-blah",
+        "process-by" : "ISO8601 Date" // Optional, so old things can be ignored
+    }
 
 The params are optional, but required if the statement has parameters!
 
@@ -78,3 +85,11 @@ following types as params for your queries:
 * INTEGER
 * NUMBER
 * STRING
+
+## PROCESS-BY
+
+Adding an optional process-by key to the submitted message will cause Bullfinch
+to completely ignore the message if the current date is after the one sent. The
+dates should be in ISO 8601 format.  This is useful for small requests that
+need to be timely.  The client can safely assume that it need not clean up a
+response queue, as the message will be dropped.
