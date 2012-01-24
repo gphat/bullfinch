@@ -64,7 +64,11 @@ public class JDBCWorker implements Worker {
 	 */
 	public void configure(HashMap<String,Object> config) throws Exception {
 		try {
-			this.durTTLProcessByDefault = Duration.parse((String) config.get("default_process_by_ttl"));
+			String ttl = (String) config.get("default_process_by_ttl");
+			if(ttl == null) {
+				ttl = "PT300S";
+			}
+			this.durTTLProcessByDefault = Duration.parse(ttl);
 		} catch (Exception e) {
 			throw new Exception("Configuration contains invalid default_process_by_ttl");
 		}
