@@ -57,7 +57,7 @@ This is a lot of options, but they are pretty straightforward. The most
 useful for the JDBC worker are the statements.  Optionally, your statements
 may have parameters.  Note that you must use placeholders for them!
 
-# HOW IT WORKS *
+# HOW IT WORKS
 
 The JDBC worker waits for messages to enter the queue it is watching.  It
 expects the message to look like this:
@@ -93,3 +93,9 @@ to completely ignore the message if the current date is after the one sent. The
 dates should be in ISO 8601 format.  This is useful for small requests that
 need to be timely.  The client can safely assume that it need not clean up a
 response queue, as the message will be dropped.
+
+### default_process_by_ttl
+
+This defaults to PT300.  It uses (Joda-Time)[http://joda-time.sourceforge.net/]
+durations. If you do not change this then any request taking over 300s will be
+dropped!
