@@ -80,7 +80,7 @@ public class Minion implements Runnable {
 				// We're adding 1000 (1 second) to the queue timeout to let
 				// xmemcached have some breathing room. Kestrel will timeout
 				// by itself.
-				String val = this.kestrel.get(this.queueName + "/t=" + this.timeout + "/open", this.timeout + 1000);
+				String val = this.kestrel.get(this.queueName + "/t=" + this.timeout + "/open", this.timeout);
 
 				if (val != null) {
 					try {

@@ -3,14 +3,14 @@
 	"performance": {
 		"collect": false,
         "kestrel_host" : "172.16.49.130",
-        "kestrel_port" : 2222,
+            "kestrel_port" : 22133,
 		"queue": "metrics"
 	},
     "workers" : [
         {
             "name" : "JDBC Worker",
             "kestrel_host" : "172.16.49.130",
-            "kestrel_port" : 2222,
+            "kestrel_port" : 22133,
             "worker_class" : "iinteractive.bullfinch.JDBCWorker",
             "worker_count" : 2,
             "subscribe_to" : "test-net-kestrel",
@@ -18,7 +18,7 @@
             "options"  : {
                 "connection" : {
                     "driver" : "com.mysql.jdbc.Driver",
-                    "dsn" : "jdbc:mysql://localhost/labor",
+                    "dsn" : "jdbc:mysql://localhost/test",
                     "uid" : "root",
                     "validation" : "SELECT 1"
                 },

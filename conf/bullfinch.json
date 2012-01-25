@@ -6,26 +6,26 @@
     "workers" : [
         {
             "name" : "JDBC Worker",
-            "kestrel_host" : "172.16.49.130",
-            "kestrel_port" : 2222,
+            "kestrel_host" : "172.16.49.132",
+            "kestrel_port" : 22133,
             "worker_class" : "iinteractive.bullfinch.JDBCWorker",
             "worker_count" : 2,
             "subscribe_to" : "test-net-kestrel",
             "timeout" : 10000,
             "options"  : {
                 "default_process_by_ttl" : "PT300S",
-                "connection" : {
-                     "driver" : "org.hsqldb.jdbcDriver",
-                     "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",
-                     "uid" : "SA",
-                     "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
+                 "connection" : {
+                     "driver" : "com.mysql.jdbc.Driver",
+                     "dsn" : "jdbc:mysql://localhost/test",
+                     "uid" : "root",
+                     "validation" : "SELECT 1"
                  },
                 "statements" : {
                     "badTable": {
                         "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
                     },
                     "goodTable": {
-                        "sql": "SELECT an_int FROM PUBLIC.TEST_TABLE",
+                        "sql": "SELECT value FROM foobar",
                     },
                     "getInt" : {
                         "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",
