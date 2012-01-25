@@ -14,18 +14,18 @@
             "timeout" : 10000,
             "options"  : {
                 "default_process_by_ttl" : "PT300S",
-                 "connection" : {
-                     "driver" : "com.mysql.jdbc.Driver",
-                     "dsn" : "jdbc:mysql://localhost/test",
-                     "uid" : "root",
-                     "validation" : "SELECT 1"
-                 },
+                "connection" : {
+                    "driver" : "org.hsqldb.jdbcDriver",
+                    "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",
+                    "uid" : "SA",
+                    "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
+                },
                 "statements" : {
                     "badTable": {
                         "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
                     },
                     "goodTable": {
-                        "sql": "SELECT value FROM foobar",
+                        "sql": "SELECT an_int FROM PUBLIC.TEST_TABLE",
                     },
                     "getInt" : {
                         "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",
