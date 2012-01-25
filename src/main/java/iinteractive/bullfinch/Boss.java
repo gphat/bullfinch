@@ -195,8 +195,6 @@ public class Boss {
 		}
 		int timeout = timeoutLng.intValue();
 
-		Long retryTimeLng = (Long) workConfig.get("retry_time");
-
 		// Get the config options to pass to the worker
 		@SuppressWarnings("unchecked")
 		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
@@ -223,11 +221,6 @@ public class Boss {
 
 			// Add the worker to the list so we can run it later.
 			Minion minion = new Minion(this.collector, client, queue, worker, timeout);
-
-			// Set some options, if necessary.
-			if(retryTimeLng != null) {
-				minion.setRetryTime(retryTimeLng.intValue());
-			}
 
 			workers.put(minion,	new Thread(minion));
 		}

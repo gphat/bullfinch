@@ -42,7 +42,7 @@ public class SimpleMinion {
 			when(mockClient.get(anyString(), anyInt())).thenReturn("IM NOT VALID");
 
 			// Mock up confirm to throw an RTE so that execution stops.
-			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", anyInt());
+			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", 10000);
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -85,7 +85,7 @@ public class SimpleMinion {
 			when(mockClient.get(anyString(), anyInt())).thenReturn("{\"foo\":\"bar\"}");
 
 			// Mock up confirm to throw an RTE so that execution stops.
-			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", anyInt());
+			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", 10000);
 
 		} catch(Exception e) {
 			e.printStackTrace();

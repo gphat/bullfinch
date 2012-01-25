@@ -18,10 +18,6 @@ the full lifecycle.
     	"queue": "metrics",
     	// optional: timeout, how often to send in seconds, defaults to 60
     	"timeout": "60",
-    	// optional: how long to wait between connection retry attempts, defaults to 20
-    	"retry_time": 20,
-    	// optional: how many times to try and connect, defaults to 5
-    	"retry_attempts": 5
     },
     "workers" : [
         …
@@ -83,9 +79,6 @@ file:
         "kestrel_port" : 2222, // the port
 		"queue": "metrics", // the queue to put stuff in
 		"timeout": 30, // time to sleep between sends of data
-		// Optional stuff
-		"retry_time": 30, // time between retries
-		"retry_attempts": 5 // number of retry attempts
 	},
 
 If enabled then Bullfinch will collect information about operations and send

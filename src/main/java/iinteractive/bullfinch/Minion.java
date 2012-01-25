@@ -3,6 +3,7 @@ package iinteractive.bullfinch;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Iterator;
+import java.util.concurrent.TimeoutException;
 
 import net.rubyeye.xmemcached.MemcachedClient;
 
@@ -28,14 +29,7 @@ public class Minion implements Runnable {
 	private int timeout;
 	private JSONParser parser;
 
-	private int retryTime = 20;
-
 	private volatile boolean cancelled = false;
-
-	public void setRetryTime(int retryTime) {
-
-		this.retryTime = retryTime;
-	}
 
 	public void setTimeout(int timeout) {
 
@@ -65,16 +59,11 @@ public class Minion implements Runnable {
 	 * Run the thread.  This method will call a get() on the queue, waiting on
 	 * the timeout.  When it gets a message it will pass it off to the worker
 	 * to handle.
-	 *
-	 * Note: If an Exception is caught in communicating with the kestrel queue
-	 * then we'll make use of retryTime and retryAttempts.  First, we'll sleep
-	 * for retryTime seconds, up to retryAttempts times before we
-	 *
 	 */
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		logger.debug("Began minion with retry time of " + this.retryTime);
+		logger.debug("Began minion");
 
 		try {
 			this.loop();
@@ -88,7 +77,10 @@ public class Minion implements Runnable {
 		while(!Thread.currentThread().isInterrupted() && !cancelled) {
 			try {
 				logger.debug("Opening item from queue");
-				String val = this.kestrel.get(this.queueName + "/t=" + this.timeout + "/open");
+				// We're adding 1000 (1 second) to the queue timeout to let
+				// xmemcached have some breathing room. Kestrel will timeout
+				// by itself.
+				String val = this.kestrel.get(this.queueName + "/t=" + this.timeout + "/open", this.timeout + 1000);
 
 				if (val != null) {
 					try {
@@ -100,12 +92,11 @@ public class Minion implements Runnable {
 					// confirm the item we took off the queue.
 					logger.debug("Closing item from queue");
 					this.kestrel.get(this.queueName + "/close");
-				} else {
-					logger.debug("Timeout expired, cycling");
 				}
 			} catch (IOException e) {
 				logger.error("Error in worker thread!", e);
-//				pauseForRetry();
+			} catch (TimeoutException e) {
+				logger.debug("Timeout expired, cycling");
 			}
 		}
 	}
@@ -149,22 +140,6 @@ public class Minion implements Runnable {
 		// Top if off with an EOF.
 		this.kestrel.set(responseQueue, 0, "{ \"EOF\":\"EOF\" }");
 	}
-
-//	private void pauseForRetry() {
-//		// Yield real quick for other threads
-//		Thread.yield();
-//
-//		// Sleep for the prescribed retry time
-//		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
-//		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
-//
-//		try {
-//			this.kestrel.disconnect();
-//			this.kestrel.connect();
-//		} catch (Exception e) {
-//			logger.warn("Caught " + e.getClass().getName() + " while trying to reconnect");
-//		}
-//	}
 
 	public void cancel() {
 

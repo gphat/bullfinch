@@ -19,10 +19,6 @@ The JDBC worker's configuration looks like this:
                 // The time the workers will spend watching the queue before
                 // timing out (then starting to watch again)
                 "timeout" : 10000,
-                // The amount of time to wait between reconnect attempts
-                "retry_time": 20,
-                // The number of times to reconnect before giving up
-                "retry_attempts": 5
                 "options"  : {
                     // Requests older than this will be ignored
                     "default_process_by_ttl" : "PT300S",
