@@ -42,7 +42,7 @@ public class SimpleMinion {
 			when(mockClient.get(anyString(), anyInt())).thenReturn("IM NOT VALID");
 
 			// Mock up confirm to throw an RTE so that execution stops.
-			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", 10000);
+			doThrow(new RuntimeException()).when(mockClient).get("foobar/close");
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -85,7 +85,7 @@ public class SimpleMinion {
 			when(mockClient.get(anyString(), anyInt())).thenReturn("{\"foo\":\"bar\"}");
 
 			// Mock up confirm to throw an RTE so that execution stops.
-			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", 10000);
+			doThrow(new RuntimeException()).when(mockClient).get("foobar/close");
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -131,7 +131,7 @@ public class SimpleMinion {
 			doAnswer(new Answer() {
 				public Object answer(InvocationOnMock invocation) {
 					Object[] args = invocation.getArguments();
-					assertEquals("EOF", "{ \"EOF\":\"EOF\" }", args[1]);
+					assertEquals("EOF", "{ \"EOF\":\"EOF\" }", args[2]);
 					throw new RuntimeException();
 				}
 			}).when(mockClient).set(anyString(), anyInt(), anyString());
@@ -143,6 +143,7 @@ public class SimpleMinion {
 		PerformanceCollector pc = new PerformanceCollector("foo", false);
 
 		Worker mockWorker = mock(Worker.class);
+
 		try {
 			// Mock up the handle method to return an empty iterator.
 			when(mockWorker.handle(

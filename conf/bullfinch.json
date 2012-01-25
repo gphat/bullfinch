@@ -6,24 +6,46 @@
     "workers" : [
         {
             "name" : "JDBC Worker",
-            "kestrel_host" : "172.16.49.132",
-            "kestrel_port" : 22133,
+            "kestrel_host" : "172.16.49.130",
+            "kestrel_port" : 2222,
             "worker_class" : "iinteractive.bullfinch.JDBCWorker",
-            "worker_count" : 1,
+            "worker_count" : 2,
             "subscribe_to" : "test-net-kestrel",
             "timeout" : 10000,
             "options"  : {
                 "default_process_by_ttl" : "PT300S",
                 "connection" : {
-                    "driver" : "com.mysql.jdbc.Driver",
-                    "dsn" : "jdbc:mysql://localhost/test",
-                    "uid" : "root",
-                    "validation" : "SELECT 1"
-                },
+                     "driver" : "org.hsqldb.jdbcDriver",
+                     "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",
+                     "uid" : "SA",
+                     "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
+                 },
                 "statements" : {
-                    "goodTable": {
-                        "sql": "SELECT value FROM foobar LIMIT 10",
+                    "badTable": {
+                        "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
                     },
+                    "goodTable": {
+                        "sql": "SELECT an_int FROM PUBLIC.TEST_TABLE",
+                    },
+                    "getInt" : {
+                        "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",
+                        "params" : [ "INTEGER" ]
+                    },
+                    "getFloat" : {
+                        "sql"    : "SELECT a_float FROM PUBLIC.TEST_TABLE WHERE a_float=?",
+                        "params" : [ "NUMBER" ]
+                    },
+                    "getBool" : {
+                        "sql"    : "SELECT a_bool FROM PUBLIC.TEST_TABLE WHERE a_bool=?",
+                        "params" : [ "BOOLEAN" ]
+                    },
+                    "getString" : {
+                        "sql"    : "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?",
+                        "params" : [ "STRING" ]
+                    },
+                    "addOne": {
+                        "sql"    : "INSERT INTO PUBLIC.TEST_TABLE (an_int, a_float, a_bool, a_string) VALUES (40, 8.94, true, 'fred')",
+                    }
                 }
             }
         }
