@@ -1,8 +1,6 @@
 package iinteractive.bullfinch;
 
-import iinteractive.kestrel.Client;
-
-import java.io.IOException;
+import net.rubyeye.xmemcached.MemcachedClient;
 
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
@@ -19,7 +17,7 @@ public class PerformanceEmitter implements Runnable {
 	static Logger logger = LoggerFactory.getLogger(PerformanceEmitter.class);
 	private PerformanceCollector collector;
 	private String queueName;
-	private Client kestrel;
+	private MemcachedClient kestrel;
 	private JSONParser parser;
 
 	private int timeout = 60;
@@ -52,7 +50,7 @@ public class PerformanceEmitter implements Runnable {
 	 * @param worker The worker instance we're wrapping
 	 * @param timeout The timeout for waiting on the queue
 	 */
-	public PerformanceEmitter(PerformanceCollector collector, Client client, String queueName) {
+	public PerformanceEmitter(PerformanceCollector collector, MemcachedClient client, String queueName) {
 
 		this.collector = collector;
 		this.queueName = queueName;
@@ -92,7 +90,7 @@ public class PerformanceEmitter implements Runnable {
 						logger.debug("Got tick from collector:\n" + item);
 
 						// Put the item in the queue
-						this.kestrel.put(this.queueName, item);
+						this.kestrel.set(this.queueName, 0, item);
 						// Try and get another item
 						count++;
 						item = collector.poll();
@@ -110,7 +108,7 @@ public class PerformanceEmitter implements Runnable {
 				return;
 			} catch(Exception e) {
 				logger.error("Got an Exception, attempting to retry", e);
-				pauseForRetry(e);
+//				pauseForRetry(e);
 			}
 		} catch(Exception e) {
 			logger.error("Error in worker thread, exiting", e);
@@ -118,29 +116,29 @@ public class PerformanceEmitter implements Runnable {
 		}
 	}
 
-	private void pauseForRetry(Exception e) throws IOException {
-
-		logger.debug("Currently at " + retries + " retries.");
-
-		// Check if we can retry
-		if(this.retries >= this.retryAttempts) {
-			// Abort! We can't get a solid connection.
-			logger.error("Retry attempts exceeded, exiting", e);
-			throw new IOException(e);
-		}
-
-		// Yield real quick for other threads
-		Thread.yield();
-
-		// Sleep for the prescribed retry time
-		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
-		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
-
-		this.kestrel.disconnect();
-		this.kestrel.connect();
-
-		this.retries++;
-	}
+//	private void pauseForRetry(Exception e) throws IOException {
+//
+//		logger.debug("Currently at " + retries + " retries.");
+//
+//		// Check if we can retry
+//		if(this.retries >= this.retryAttempts) {
+//			// Abort! We can't get a solid connection.
+//			logger.error("Retry attempts exceeded, exiting", e);
+//			throw new IOException(e);
+//		}
+//
+//		// Yield real quick for other threads
+//		Thread.yield();
+//
+//		// Sleep for the prescribed retry time
+//		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
+//		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
+//
+//		this.kestrel.disconnect();
+//		this.kestrel.connect();
+//
+//		this.retries++;
+//	}
 
 	public void cancel() {
 

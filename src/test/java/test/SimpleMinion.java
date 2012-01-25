@@ -15,10 +15,11 @@ import static org.mockito.Mockito.when;
 import iinteractive.bullfinch.Minion;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.Worker;
-import iinteractive.kestrel.Client;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import net.rubyeye.xmemcached.MemcachedClient;
 
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -35,13 +36,13 @@ public class SimpleMinion {
 
 		String queueName = "foobar";
 
-		Client mockClient = mock(Client.class);
+		MemcachedClient mockClient = mock(MemcachedClient.class);
 		try {
 			// Mock up the queue to return invalid JSON
 			when(mockClient.get(anyString(), anyInt())).thenReturn("IM NOT VALID");
 
 			// Mock up confirm to throw an RTE so that execution stops.
-			doThrow(new RuntimeException()).when(mockClient).confirm(anyString(), anyInt());
+			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", anyInt());
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -62,7 +63,7 @@ public class SimpleMinion {
 
 		// Verify that put was NEVER called.
 		try {
-			verify(mockClient, never()).put(anyString(), anyString());
+			verify(mockClient, never()).set(anyString(), anyInt(), anyString());
 		} catch(Exception e) {
 			fail("Got weird exception from mock put. Wtf?");
 		}
@@ -78,13 +79,13 @@ public class SimpleMinion {
 
 		String queueName = "foobar";
 
-		Client mockClient = mock(Client.class);
+		MemcachedClient mockClient = mock(MemcachedClient.class);
 		try {
 			// Mock up the queue to return invalid JSON
 			when(mockClient.get(anyString(), anyInt())).thenReturn("{\"foo\":\"bar\"}");
 
 			// Mock up confirm to throw an RTE so that execution stops.
-			doThrow(new RuntimeException()).when(mockClient).confirm(anyString(), anyInt());
+			doThrow(new RuntimeException()).when(mockClient).get("foobar/close", anyInt());
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -105,7 +106,7 @@ public class SimpleMinion {
 
 		// Verify that put was NEVER called.
 		try {
-			verify(mockClient, never()).put(anyString(), anyString());
+			verify(mockClient, never()).set(anyString(), anyInt(), anyString());
 		} catch(Exception e) {
 			fail("Got weird exception from mock put. Wtf?");
 		}
@@ -121,7 +122,7 @@ public class SimpleMinion {
 	 */
 	public void testNoResults() {
 
-		Client mockClient = mock(Client.class);
+		MemcachedClient mockClient = mock(MemcachedClient.class);
 		try {
 			// Mock the basic JSON stuff in the queue.
 			when(mockClient.get(anyString(), anyInt())).thenReturn("{\"response_queue\":\"whatever\"}");
@@ -133,7 +134,7 @@ public class SimpleMinion {
 					assertEquals("EOF", "{ \"EOF\":\"EOF\" }", args[1]);
 					throw new RuntimeException();
 				}
-			}).when(mockClient).put(anyString(), anyString());
+			}).when(mockClient).set(anyString(), anyInt(), anyString());
 		} catch(Exception e) {
 			e.printStackTrace();
 			fail("Failed to stub get method for kestrel client");

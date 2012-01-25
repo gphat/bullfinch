@@ -1,7 +1,5 @@
 package iinteractive.bullfinch;
 
-import iinteractive.kestrel.Client;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,6 +9,12 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+
+import net.rubyeye.xmemcached.MemcachedClient;
+import net.rubyeye.xmemcached.MemcachedClientBuilder;
+import net.rubyeye.xmemcached.XMemcachedClientBuilder;
+import net.rubyeye.xmemcached.command.KestrelCommandFactory;
+import net.rubyeye.xmemcached.utils.AddrUtil;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -100,24 +104,24 @@ public class Boss {
 		InetAddress addr = InetAddress.getLocalHost();
 		this.collector = new PerformanceCollector(addr.getHostName(), this.collecting);
 
-		if(this.collecting) {
-			// Prepare the emitter thread
-			if(this.collecting) {
-				Client kestrel = new Client((String) perfConfig.get("kestrel_host"), ((Long) perfConfig.get("kestrel_port")).intValue());
-				kestrel.connect();
-				this.emitter = new PerformanceEmitter(this.collector, kestrel, (String) perfConfig.get("queue"));
-				if(perfConfig.containsKey("timeout")) {
-					this.emitter.setTimeout(((Long) perfConfig.get("timeout")).intValue());
-				}
-				if(perfConfig.containsKey("retry_time")) {
-					this.emitter.setRetryTime(((Long) perfConfig.get("retry_time")).intValue());
-				}
-				if(perfConfig.containsKey("retry_attempts")) {
-					this.emitter.setRetryAttempts(((Long) perfConfig.get("retry_attempts")).intValue());
-				}
-				this.emitterThread = new Thread(this.emitter);
-			}
-		}
+//		if(this.collecting) {
+//			// Prepare the emitter thread
+//			if(this.collecting) {
+//				Client kestrel = new Client((String) perfConfig.get("kestrel_host"), ((Long) perfConfig.get("kestrel_port")).intValue());
+//				kestrel.connect();
+//				this.emitter = new PerformanceEmitter(this.collector, kestrel, (String) perfConfig.get("queue"));
+//				if(perfConfig.containsKey("timeout")) {
+//					this.emitter.setTimeout(((Long) perfConfig.get("timeout")).intValue());
+//				}
+//				if(perfConfig.containsKey("retry_time")) {
+//					this.emitter.setRetryTime(((Long) perfConfig.get("retry_time")).intValue());
+//				}
+//				if(perfConfig.containsKey("retry_attempts")) {
+//					this.emitter.setRetryAttempts(((Long) perfConfig.get("retry_attempts")).intValue());
+//				}
+//				this.emitterThread = new Thread(this.emitter);
+//			}
+//		}
 
 		JSONArray workerList = (JSONArray) config.get("workers");
 		if(workerList == null) {
@@ -211,11 +215,14 @@ public class Boss {
 			worker.configure(workerConfig);
 
 			// Give it it's very own kestrel connection.
-			Client kestrel = new Client(workHost, workPort);
-			kestrel.connect();
+			MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
+			builder.setCommandFactory(new KestrelCommandFactory());
+			MemcachedClient client = builder.build();
+			client.setPrimitiveAsString(true);
+
 
 			// Add the worker to the list so we can run it later.
-			Minion minion = new Minion(this.collector, kestrel, queue, worker, timeout);
+			Minion minion = new Minion(this.collector, client, queue, worker, timeout);
 
 			// Set some options, if necessary.
 			if(retryTimeLng != null) {

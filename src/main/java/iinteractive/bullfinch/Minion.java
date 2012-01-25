@@ -1,11 +1,10 @@
 package iinteractive.bullfinch;
 
-import iinteractive.kestrel.Client;
-import iinteractive.kestrel.KestrelException;
-
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Iterator;
+
+import net.rubyeye.xmemcached.MemcachedClient;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -25,7 +24,7 @@ public class Minion implements Runnable {
 	private PerformanceCollector collector;
 	private String queueName;
 	private Worker worker;
-	private Client kestrel;
+	private MemcachedClient kestrel;
 	private int timeout;
 	private JSONParser parser;
 
@@ -51,7 +50,7 @@ public class Minion implements Runnable {
 	 * @param worker The worker instance we're wrapping
 	 * @param timeout The timeout for waiting on the queue
 	 */
-	public Minion(PerformanceCollector collector, Client client, String queueName, Worker worker, int timeout) {
+	public Minion(PerformanceCollector collector, MemcachedClient client, String queueName, Worker worker, int timeout) {
 
 		this.collector = collector;
 		this.queueName = queueName;
@@ -88,7 +87,8 @@ public class Minion implements Runnable {
 	private void loop() throws Exception {
 		while(!Thread.currentThread().isInterrupted() && !cancelled) {
 			try {
-				String val = this.kestrel.get(this.queueName, this.timeout);
+				logger.debug("Opening item from queue");
+				String val = this.kestrel.get(this.queueName + "/t=" + this.timeout + "/open");
 
 				if (val != null) {
 					try {
@@ -98,16 +98,14 @@ public class Minion implements Runnable {
 					}
 
 					// confirm the item we took off the queue.
-					this.kestrel.confirm(this.queueName, 1);
+					logger.debug("Closing item from queue");
+					this.kestrel.get(this.queueName + "/close");
 				} else {
 					logger.debug("Timeout expired, cycling");
 				}
-			} catch (KestrelException e) {
-				logger.error("Error in worker thread, reconnecting", e);
-				pauseForRetry();
 			} catch (IOException e) {
-				logger.error("Error in worker thread, reconnecting", e);
-				pauseForRetry();
+				logger.error("Error in worker thread!", e);
+//				pauseForRetry();
 			}
 		}
 	}
@@ -141,7 +139,7 @@ public class Minion implements Runnable {
 
 		long start = System.currentTimeMillis();
 		while(items.hasNext()) {
-			this.kestrel.put(responseQueue, items.next());
+			this.kestrel.set(responseQueue, 0, items.next());
 		}
 		collector.add(
 			"ResultSet iteration and queue insertion",
@@ -149,24 +147,24 @@ public class Minion implements Runnable {
 			(String) request.get("tracer")
 		);
 		// Top if off with an EOF.
-		this.kestrel.put(responseQueue, "{ \"EOF\":\"EOF\" }");
+		this.kestrel.set(responseQueue, 0, "{ \"EOF\":\"EOF\" }");
 	}
 
-	private void pauseForRetry() {
-		// Yield real quick for other threads
-		Thread.yield();
-
-		// Sleep for the prescribed retry time
-		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
-		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
-
-		try {
-			this.kestrel.disconnect();
-			this.kestrel.connect();
-		} catch (Exception e) {
-			logger.warn("Caught " + e.getClass().getName() + " while trying to reconnect");
-		}
-	}
+//	private void pauseForRetry() {
+//		// Yield real quick for other threads
+//		Thread.yield();
+//
+//		// Sleep for the prescribed retry time
+//		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
+//		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
+//
+//		try {
+//			this.kestrel.disconnect();
+//			this.kestrel.connect();
+//		} catch (Exception e) {
+//			logger.warn("Caught " + e.getClass().getName() + " while trying to reconnect");
+//		}
+//	}
 
 	public void cancel() {
 
