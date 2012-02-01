@@ -182,6 +182,11 @@ The timeout that each "get" request will wait for. This prevents bullfinch
 from repeatedly banging on kestrel, instead politely waiting for `timeout`
 milliseconds to see if anything is ready for work in the queue.
 
+This timeout is also used for "set" operations.  If your network is crappy or
+or the item you are putting into kestrel is large you may need to watch this
+setting, as timeouts can cause bullfinch to partially handle a result, then
+abort and start it again.
+
 ## Optional Options ##
 
 ### options ###

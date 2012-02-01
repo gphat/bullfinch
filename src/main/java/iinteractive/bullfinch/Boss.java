@@ -218,6 +218,7 @@ public class Boss {
 			MemcachedClient client = builder.build();
 			client.setPrimitiveAsString(true);
 			client.setEnableHeartBeat(false);
+			client.setOpTimeout(timeout);
 
 			// Add the worker to the list so we can run it later.
 			Minion minion = new Minion(this.collector, client, queue, worker, timeout);
