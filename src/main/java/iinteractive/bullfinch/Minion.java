@@ -103,6 +103,9 @@ public class Minion implements Runnable {
 				 * library.
 				 */
 				Thread.sleep(5000);
+			} catch(RuntimeException e) {
+				/* Rethrow RTE */
+				throw(e);
 			} catch (Exception e) {
 				logger.error("Unknown exception in processing loop", e);
 				/* Sleep for longer since we have no idea what's broken. */
