@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 
 import net.rubyeye.xmemcached.MemcachedClient;
+import net.rubyeye.xmemcached.exception.MemcachedException;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -88,7 +89,6 @@ public class Minion implements Runnable {
 					} catch (ProcessTimeoutException e) {
 						// ignore a timeout exception
 					}
-
 					// confirm the item we took off the queue.
 					logger.debug("Closing item from queue");
 					this.kestrel.get(this.queueName + "/close");
@@ -97,6 +97,16 @@ public class Minion implements Runnable {
 				logger.error("Error in worker thread!", e);
 			} catch (TimeoutException e) {
 				logger.debug("Timeout expired, cycling");
+			} catch (MemcachedException e) {
+				logger.error("Caught exception from memcached", e);
+				/* Lets sleep for 5 seconds so as not to hammer the xmemcached
+				 * library.
+				 */
+				Thread.sleep(5000);
+			} catch (Exception e) {
+				logger.error("Unknown exception in processing loop", e);
+				/* Sleep for longer since we have no idea what's broken. */
+				Thread.sleep(30000);
 			}
 		}
 	}
