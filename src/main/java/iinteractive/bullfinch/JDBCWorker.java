@@ -168,7 +168,6 @@ public class JDBCWorker implements Worker {
 				// try to parse the process-by date
 				dtProcessBy = DateTime.parse((String) request.get("process-by"));
 			} catch (Exception e) {
-				logger.info("Failed to parse process-by date: ", e);
 				// unable to parse the date, use default of now+ttl instead
 				dtProcessBy = DateTime.now().withDurationAdded(this.durTTLProcessByDefault, 1);
 			}
