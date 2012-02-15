@@ -21,6 +21,11 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	private String[] columnNames;
 	private int[] columnTypes;
 	private int columnCount;
+	private int lastRowNum = 0;
+	// Use this as a sentinel to determine if we've already called next(), this
+	// way we can peek ahead in the hasNext.
+	private boolean checkedNext = false;
+	private boolean hasNext = false;
 
 
 	public JSONResultSetWrapper(String tracer, ResultSet rs) throws SQLException {
@@ -46,18 +51,23 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	@Override
 	public boolean hasNext() {
 
-		boolean hasMore = false;
-		try {
-			// If this isn't the last one, then we are ok. When isLast is true,
-			// this will return false.
-			hasMore = this.resultSet.next();
-		} catch(SQLException e) {
-			// We'll complain, but otherwise we'll return a false, can't do
-			// much about it here.
-			e.printStackTrace();
+		// Don't advance the resultset unless next() has cleared the checkedNext
+		// sentinel.  This makes it save to call hasNext multiple times so long
+		// as next isn't called.
+		if(!checkedNext) {
+			try {
+				// If this isn't the last one, then we are ok. When isLast is true,
+				// this will return false.
+				hasNext = this.resultSet.next();
+				checkedNext = true;
+			} catch(SQLException e) {
+				// We'll complain, but otherwise we'll return a false, can't do
+				// much about it here.
+				logger.error("Exception in ResultSet next:", e);
+			}
 		}
 
-		return hasMore;
+		return hasNext;
 	}
 
 	/**
@@ -75,7 +85,13 @@ public class JSONResultSetWrapper implements Iterator<String> {
 			if(this.tracer != null) {
 				obj.put("tracer", this.tracer);
 			}
-			obj.put("row_num", new Integer(resultSet.getRow()));
+			// Code to validate that the rowNum is sequential.
+			int rowNum = resultSet.getRow();
+			if(rowNum != lastRowNum + 1) {
+				logger.warn("Got weird row num: " + rowNum + " following " + lastRowNum);
+			}
+			lastRowNum = rowNum;
+			obj.put("row_num", new Integer(rowNum));
 
 	        JSONObject data = new JSONObject();
 	        obj.put("row_data", data);
@@ -128,7 +144,10 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	                    throw new SQLException("I don't recognize this type for column (" + col_name + ")");
 	            }
 	        }
-		} catch(Exception e) {
+	        // Change our "next" sentinel so that the next hasNext will
+	        // get our next row.
+	        checkedNext = false;
+		} catch(SQLException e) {
 			logger.error("Failed to JSON-ify resultset", e);
 		}
 

@@ -1,6 +1,5 @@
 package iinteractive.bullfinch;
 
-import java.io.IOException;
 import java.io.StringReader;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
@@ -93,8 +92,6 @@ public class Minion implements Runnable {
 					logger.debug("Closing item from queue");
 					this.kestrel.get(this.queueName + "/close");
 				}
-			} catch (IOException e) {
-				logger.error("Error in worker thread!", e);
 			} catch (TimeoutException e) {
 				logger.debug("Timeout expired, cycling");
 			} catch (MemcachedException e) {
@@ -114,7 +111,7 @@ public class Minion implements Runnable {
 		}
 	}
 
-	private void process(String val) throws Exception {
+	private void process(String val) throws ProcessTimeoutException {
 		JSONObject request = null;
 
 		logger.debug("Got item from queue:\n" + val);
@@ -139,11 +136,12 @@ public class Minion implements Runnable {
 
 		// Get a list of items back from the worker
 		Iterator<String> items = this.worker.handle(collector, request);
+
 		// Send those items back into the queue
 
 		long start = System.currentTimeMillis();
 		while(items.hasNext()) {
-			this.kestrel.set(responseQueue, 0, items.next());
+			sendMessage(responseQueue, items.next());
 		}
 		collector.add(
 			"ResultSet iteration and queue insertion",
@@ -151,7 +149,31 @@ public class Minion implements Runnable {
 			(String) request.get("tracer")
 		);
 		// Top if off with an EOF.
-		this.kestrel.set(responseQueue, 0, "{ \"EOF\":\"EOF\" }");
+		sendMessage(responseQueue, "{ \"EOF\":\"EOF\" }");
+	}
+
+	/*
+	 * Convenience method that wraps kestrel.set so that network errors and
+	 * whatnot will get handled and responses will get sent.
+	 */
+	private void sendMessage(String queue, String message) {
+
+		boolean notSent = true;
+		while(notSent) {
+			try {
+				this.kestrel.set(queue, 0, message);
+				notSent = true;
+			} catch(MemcachedException e) {
+				logger.error("Error sending EOF to complete response", e);
+				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
+			} catch(InterruptedException e) {
+				logger.error("Interrupted", e);
+				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
+			} catch(TimeoutException e) {
+				logger.error("Timed out sending EOF to complete response", e);
+				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
+			}
+		}
 	}
 
 	public void cancel() {

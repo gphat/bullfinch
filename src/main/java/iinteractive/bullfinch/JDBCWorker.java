@@ -5,6 +5,7 @@ import iinteractive.bullfinch.Phrasebook.ParamType;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -154,7 +155,7 @@ public class JDBCWorker implements Worker {
 	 * @param request The request as a post-json-parsed-hashmap.
 	 * @return An iterator for sending the response back.
 	 */
-	public Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws Exception {
+	public Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws ProcessTimeoutException {
 
 		ArrayList<String> list = new ArrayList<String>();
 
@@ -222,7 +223,7 @@ public class JDBCWorker implements Worker {
 			list.add(obj.toString());
 		} finally {
 			if(conn != null) {
-				conn.close();
+				try { conn.close(); } catch(SQLException e) { logger.error("Failed to close connection", e); }
 			}
 		}
 
