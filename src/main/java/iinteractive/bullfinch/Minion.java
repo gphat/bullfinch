@@ -162,7 +162,7 @@ public class Minion implements Runnable {
 		while(notSent) {
 			try {
 				this.kestrel.set(queue, 0, message);
-				notSent = true;
+				notSent = false;
 			} catch(MemcachedException e) {
 				logger.error("Error sending EOF to complete response", e);
 				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
