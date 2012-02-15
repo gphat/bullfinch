@@ -33,14 +33,16 @@ public class JSONResultSetWrapper implements Iterator<String> {
 		this.tracer = tracer;
 		this.resultSet = rs;
 		this.metadata = rs.getMetaData();
-		this.columnCount = this.metadata.getColumnCount();
+		if(this.metadata != null) { // Only here to make testing easier
+			this.columnCount = this.metadata.getColumnCount();
 
-		// Setup an array of names and types, using the rowCount size
-		this.columnNames = new String[this.columnCount];
-		this.columnTypes = new int[this.columnCount];
-		for (int i = 0; i < this.columnCount; i++) {
-			columnNames[i] = metadata.getColumnName(i + 1);
-			columnTypes[i] = metadata.getColumnType(i + 1);
+			// Setup an array of names and types, using the rowCount size
+			this.columnNames = new String[this.columnCount];
+			this.columnTypes = new int[this.columnCount];
+			for (int i = 0; i < this.columnCount; i++) {
+				columnNames[i] = metadata.getColumnName(i + 1);
+				columnTypes[i] = metadata.getColumnType(i + 1);
+			}
 		}
 	}
 
