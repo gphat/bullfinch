@@ -9,6 +9,7 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Properties;
 
 import net.rubyeye.xmemcached.MemcachedClient;
 import net.rubyeye.xmemcached.MemcachedClientBuilder;
@@ -260,6 +261,15 @@ public class Boss {
 
 		if(this.collecting) {
 			this.emitterThread.start();
+		}
+
+		Properties buildProps = new Properties();
+		try {
+			buildProps.load(Boss.class.getResource("build.properties").openStream());
+			String version = buildProps.getProperty("version", "0.0");
+			logger.info("Started Bullfinch " + version);
+		} catch(Exception e) {
+			logger.warn("Couldn't find build.properties. Continuing.");
 		}
 	}
 
