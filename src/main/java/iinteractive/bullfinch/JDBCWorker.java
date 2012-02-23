@@ -240,8 +240,9 @@ public class JDBCWorker implements Worker {
 		// pooling so much as the connection verification and whatnot.
 		ds.setMaxActive(1);
 		ds.setMaxIdle(1);
-		ds.setTestOnBorrow(true);
 		ds.setPoolPreparedStatements(true);
+		ds.setTestOnBorrow(true);
+		ds.setTestWhileIdle(true);
 		ds.setValidationQuery(this.validationQuery);
 
 		ds.setDriverClassName(this.driver);
