@@ -66,6 +66,8 @@ public class Boss {
 					boss.stop();
 					boss = new Boss(args[0]);
 					boss.start();
+				} else {
+					logger.info("Config checked");
 				}
 			}
 		} catch(Exception e) {
