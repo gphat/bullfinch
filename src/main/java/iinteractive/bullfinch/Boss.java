@@ -218,10 +218,11 @@ public class Boss {
 			// Give it it's very own kestrel connection.
 			MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
 			builder.setCommandFactory(new KestrelCommandFactory());
+			builder.setFailureMode(true);
 			MemcachedClient client = builder.build();
-			client.setPrimitiveAsString(true);
 			client.setEnableHeartBeat(false);
 			client.setOpTimeout(timeout);
+			client.setPrimitiveAsString(true);
 
 			// Add the worker to the list so we can run it later.
 			Minion minion = new Minion(this.collector, client, queue, worker, timeout);

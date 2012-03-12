@@ -2,14 +2,14 @@
     "config_refresh_seconds": 300,
 	"performance": {
 		"collect": false,
-        "kestrel_host" : "172.16.49.130",
+        "kestrel_host" : "127.0.0.1",
             "kestrel_port" : 22133,
 		"queue": "metrics"
 	},
     "workers" : [
         {
             "name" : "JDBC Worker",
-            "kestrel_host" : "172.16.49.130",
+            "kestrel_host" : "127.0.0.1",
             "kestrel_port" : 22133,
             "worker_class" : "iinteractive.bullfinch.JDBCWorker",
             "worker_count" : 2,
@@ -27,7 +27,7 @@
                         "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
                     },
                     "goodTable": {
-                        "sql": "SELECT name FROM account_status_type",
+                        "sql": "SELECT CURTIME()",
                     },
                     "getInt" : {
                         "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",

@@ -119,10 +119,15 @@ public class Minion implements Runnable {
 		try {
 			request = (JSONObject) parser.parse(new StringReader(val));
 		} catch (Error e) {
-			logger.debug("unable to parse input, ignoring");
+			logger.warn("unable to parse input, ignoring");
 			return;
 		} catch (Exception e) {
-			logger.debug("unable to parse input, ignoring");
+			logger.warn("unable to parse input, ignoring");
+			return;
+		}
+
+		if(request == null) {
+			logger.warn("Failed to parse request, ignoring");
 			return;
 		}
 
