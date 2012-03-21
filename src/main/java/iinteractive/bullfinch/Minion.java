@@ -1,6 +1,7 @@
 package iinteractive.bullfinch;
 
 import java.io.StringReader;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 
@@ -19,12 +20,11 @@ import org.slf4j.LoggerFactory;
  * @author gphat
  *
  */
-public class Minion implements Runnable {
+public abstract class Minion implements Runnable {
 
 	static Logger logger = LoggerFactory.getLogger(Minion.class);
 	private PerformanceCollector collector;
 	private String queueName;
-	private Worker worker;
 	private MemcachedClient kestrel;
 	private int timeout;
 	private JSONParser parser;
@@ -39,21 +39,37 @@ public class Minion implements Runnable {
 	/**
 	 * Create a new minion.
 	 *
+	 * @param collector A performance collector instance
 	 * @param client  Pre-connected Kestrel client
 	 * @param queueName Name of the queue to talk to
-	 * @param worker The worker instance we're wrapping
 	 * @param timeout The timeout for waiting on the queue
 	 */
-	public Minion(PerformanceCollector collector, MemcachedClient client, String queueName, Worker worker, int timeout) {
+	public Minion(PerformanceCollector collector, MemcachedClient client, String queueName, Integer timeout) {
 
 		this.collector = collector;
 		this.queueName = queueName;
 		this.kestrel = client;
-		this.worker = worker;
 		this.timeout = timeout;
 
 		this.parser = new JSONParser();
 	}
+
+	/**
+	 * Configure the worker.
+	 *
+	 * @param config
+	 * @throws Exception
+	 */
+	public abstract void configure(HashMap<String,Object> config) throws Exception;
+
+	/**
+	 * Handle a request.
+	 *
+	 * @param request The request!
+	 * @return An iterator of strings, suitable for returning to the caller.
+	 * @throws Exception
+	 */
+	public abstract Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws ProcessTimeoutException;
 
 	/**
 	 * Run the thread.  This method will call a get() on the queue, waiting on
@@ -140,7 +156,7 @@ public class Minion implements Runnable {
 		logger.debug("Response will go to " + responseQueue);
 
 		// Get a list of items back from the worker
-		Iterator<String> items = this.worker.handle(collector, request);
+		Iterator<String> items = this.handle(collector, request);
 
 		// Send those items back into the queue
 

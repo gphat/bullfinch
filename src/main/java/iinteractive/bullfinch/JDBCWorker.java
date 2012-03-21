@@ -11,6 +11,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import net.rubyeye.xmemcached.MemcachedClient;
+
 import org.apache.commons.dbcp.BasicDataSource;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -24,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * @author gphat
  *
  */
-public class JDBCWorker implements Worker {
+public class JDBCWorker extends Minion {
 
 	static Logger logger = LoggerFactory.getLogger(JDBCWorker.class);
 
@@ -39,8 +41,9 @@ public class JDBCWorker implements Worker {
 
 	private BasicDataSource ds;
 
-	public JDBCWorker() {
+	public JDBCWorker(PerformanceCollector collector, MemcachedClient client, String queueName, Integer timeout) {
 
+		super(collector, client, queueName, timeout);
 		this.statementBook = new Phrasebook();
 	}
 
@@ -64,6 +67,7 @@ public class JDBCWorker implements Worker {
 	 * @throws Exception
 	 */
 	public void configure(HashMap<String,Object> config) throws Exception {
+
 		try {
 			String ttl = (String) config.get("default_process_by_ttl");
 			if(ttl == null) {

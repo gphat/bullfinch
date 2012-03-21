@@ -211,10 +211,6 @@ public class Boss {
 
 		for(int i = 0; i < workerCount; i++) {
 
-			// Create an instance of a worker.
-			Worker worker = (Worker) Class.forName(workerClass).newInstance();
-			worker.configure(workerConfig);
-
 			// Give it it's very own kestrel connection.
 			MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
 			builder.setCommandFactory(new KestrelCommandFactory());
@@ -224,10 +220,20 @@ public class Boss {
 			client.setOpTimeout(timeout);
 			client.setPrimitiveAsString(true);
 
-			// Add the worker to the list so we can run it later.
-			Minion minion = new Minion(this.collector, client, queue, worker, timeout);
+			// Create an instance of a worker.
+			@SuppressWarnings("rawtypes")
+			Class[] params = {
+				PerformanceCollector.class,
+				MemcachedClient.class,
+				String.class,
+				Integer.class
+			};
+			Minion worker = (Minion) Class.forName(workerClass).getDeclaredConstructor(
+				params
+			).newInstance(this.collector, client, queue, new Integer(timeout));
+			worker.configure(workerConfig);
 
-			workers.put(minion,	new Thread(minion));
+			workers.put(worker,	new Thread(worker));
 		}
 
 		this.minionGroups.put(name, workers);
