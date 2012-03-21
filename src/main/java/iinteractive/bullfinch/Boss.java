@@ -1,5 +1,7 @@
 package iinteractive.bullfinch;
 
+import iinteractive.bullfinch.minion.PerformanceEmitter;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -10,12 +12,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Properties;
-
-import net.rubyeye.xmemcached.MemcachedClient;
-import net.rubyeye.xmemcached.MemcachedClientBuilder;
-import net.rubyeye.xmemcached.XMemcachedClientBuilder;
-import net.rubyeye.xmemcached.command.KestrelCommandFactory;
-import net.rubyeye.xmemcached.utils.AddrUtil;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -163,25 +159,9 @@ public class Boss {
 			throw new ConfigurationException("Each worker must have a name!");
 		}
 
-		String workHost = (String) workConfig.get("kestrel_host");
-		if(workHost == null) {
-			throw new ConfigurationException("Each worker must have a kestrel_host!");
-		}
-
-		Long workPortLng = (Long) workConfig.get("kestrel_port");
-		if(workPortLng == null) {
-			throw new ConfigurationException("Each worker must have a kestrel_port!");
-		}
-		int workPort = workPortLng.intValue();
-
 		String workerClass = (String) workConfig.get("worker_class");
 		if(workerClass == null) {
 			throw new ConfigurationException("Each worker must have a worker_class!");
-		}
-
-		String queue = (String) workConfig.get("subscribe_to");
-		if(queue == null) {
-			throw new ConfigurationException("Each worker must have a subscribe_to!");
 		}
 
 		Long workerCountLng = (Long) workConfig.get("worker_count");
@@ -192,51 +172,33 @@ public class Boss {
 			workerCount = workerCountLng.intValue();
 		}
 
-		Long timeoutLng = (Long) workConfig.get("timeout");
-		if(timeoutLng == null) {
-			throw new ConfigurationException("Each worker must have a timeout!");
-		}
-		int timeout = timeoutLng.intValue();
-
 		// Get the config options to pass to the worker
 		@SuppressWarnings("unchecked")
 		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
 
 		if(workerConfig == null) {
-			throw new ConfigurationException("Each worker must have a worker_config!");
+			throw new ConfigurationException("Each worker must have options!");
 		}
 
-		HashMap<Minion,Thread> workers = new HashMap<Minion,Thread>();
+		HashMap<Minion,Thread> minions = new HashMap<Minion,Thread>();
 		logger.debug("Created threadgroup for " + name);
 
 		for(int i = 0; i < workerCount; i++) {
-
-			// Give it it's very own kestrel connection.
-			MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
-			builder.setCommandFactory(new KestrelCommandFactory());
-			builder.setFailureMode(true);
-			MemcachedClient client = builder.build();
-			client.setEnableHeartBeat(false);
-			client.setOpTimeout(timeout);
-			client.setPrimitiveAsString(true);
 
 			// Create an instance of a worker.
 			@SuppressWarnings("rawtypes")
 			Class[] params = {
 				PerformanceCollector.class,
-				MemcachedClient.class,
-				String.class,
-				Integer.class
 			};
-			Minion worker = (Minion) Class.forName(workerClass).getDeclaredConstructor(
+			Minion minion = (Minion) Class.forName(workerClass).getDeclaredConstructor(
 				params
-			).newInstance(this.collector, client, queue, new Integer(timeout));
-			worker.configure(workerConfig);
+			).newInstance(this.collector);
+			minion.configure(workerConfig);
 
-			workers.put(worker,	new Thread(worker));
+			minions.put(minion,	new Thread(minion));
 		}
 
-		this.minionGroups.put(name, workers);
+		this.minionGroups.put(name, minions);
 		logger.debug("Added worker threads to minion map.");
 	}
 

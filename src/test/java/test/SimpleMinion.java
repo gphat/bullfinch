@@ -14,7 +14,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import iinteractive.bullfinch.Minion;
 import iinteractive.bullfinch.PerformanceCollector;
-import iinteractive.bullfinch.Worker;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,10 +50,7 @@ public class SimpleMinion {
 
 		PerformanceCollector pc = new PerformanceCollector("foo", false);
 
-		// Mock up an empty worker
-		Worker mockWorker = mock(Worker.class);
-
-		Minion m = new Minion(pc, mockClient, queueName, mockWorker, 1000);
+		Minion m = new Minion(pc, mockClient, queueName, 1000);
 		try {
 			m.run();
 		} catch(Exception e) {
@@ -94,10 +90,7 @@ public class SimpleMinion {
 
 		PerformanceCollector pc = new PerformanceCollector("foo", false);
 
-		// Mock up an empty worker
-		Worker mockWorker = mock(Worker.class);
-
-		Minion m = new Minion(pc, mockClient, queueName, mockWorker, 1000);
+		Minion m = new Minion(pc, mockClient, queueName, 1000);
 		try {
 			m.run();
 		} catch(Exception e) {
@@ -141,8 +134,6 @@ public class SimpleMinion {
 		}
 
 		PerformanceCollector pc = new PerformanceCollector("foo", false);
-
-		Worker mockWorker = mock(Worker.class);
 
 		try {
 			// Mock up the handle method to return an empty iterator.

@@ -1,6 +1,14 @@
-package iinteractive.bullfinch;
+package iinteractive.bullfinch.minion;
 
-import net.rubyeye.xmemcached.MemcachedClient;
+import iinteractive.bullfinch.ConfigurationException;
+import iinteractive.bullfinch.PerformanceCollector;
+
+import java.util.HashMap;
+
+import net.rubyeye.xmemcached.MemcachedClientBuilder;
+import net.rubyeye.xmemcached.XMemcachedClientBuilder;
+import net.rubyeye.xmemcached.command.KestrelCommandFactory;
+import net.rubyeye.xmemcached.utils.AddrUtil;
 
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
@@ -12,20 +20,14 @@ import org.slf4j.LoggerFactory;
  * @author gphat
  *
  */
-public class PerformanceEmitter implements Runnable {
+public class PerformanceEmitter extends KestrelBased {
 
 	static Logger logger = LoggerFactory.getLogger(PerformanceEmitter.class);
-	private PerformanceCollector collector;
-	private String queueName;
-	private MemcachedClient kestrel;
 	private JSONParser parser;
 
-	private int timeout = 60;
 	private int retries = 0;
 	private int retryTime = 20;
 	private int retryAttempts = 5;
-
-	private volatile boolean cancelled = false;
 
 	public void setRetryAttempts(int retryAttempts) {
 
@@ -37,26 +39,39 @@ public class PerformanceEmitter implements Runnable {
 		this.retryTime = retryTime;
 	}
 
-	public void setTimeout(int timeout) {
-
-		this.timeout = timeout;
-	}
-
 	/**
 	 * Create a new emitter.
 	 *
-	 * @param client  Pre-connected Kestrel client
-	 * @param queueName Name of the queue to talk to
-	 * @param worker The worker instance we're wrapping
-	 * @param timeout The timeout for waiting on the queue
+	 * @param collector
 	 */
-	public PerformanceEmitter(PerformanceCollector collector, MemcachedClient client, String queueName) {
+	public PerformanceEmitter(PerformanceCollector collector) {
 
-		this.collector = collector;
-		this.queueName = queueName;
-		this.kestrel = client;
+		super(collector);
 
 		this.parser = new JSONParser();
+	}
+
+	@Override
+	public void configure(HashMap<String,Object> config) throws Exception {
+
+		String workHost = (String) config.get("kestrel_host");
+		if(workHost == null) {
+			throw new ConfigurationException("Each worker must have a kestrel_host!");
+		}
+
+		Long workPortLng = (Long) config.get("kestrel_port");
+		if(workPortLng == null) {
+			throw new ConfigurationException("Each worker must have a kestrel_port!");
+		}
+		int workPort = workPortLng.intValue();
+
+		// Give it a kestrel connection.
+		MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
+		builder.setCommandFactory(new KestrelCommandFactory());
+		builder.setFailureMode(true);
+		client = builder.build();
+		client.setEnableHeartBeat(false);
+		client.setPrimitiveAsString(true);
 	}
 
 	/**
@@ -71,7 +86,7 @@ public class PerformanceEmitter implements Runnable {
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		logger.debug("Began emmitter thread with time of " + this.timeout + ", retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
+		logger.debug("Began emmitter thread with time of XXX, retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
 
 		try {
 			// We are using nested tries because we want to attempt to reconnect
@@ -80,7 +95,7 @@ public class PerformanceEmitter implements Runnable {
 				while(!Thread.currentThread().isInterrupted() && !cancelled) {
 
 					// Sleep for a bit.
-					Thread.sleep(this.timeout * 1000);
+					Thread.sleep(1000);
 
 					logger.debug("Emitter expired.");
 
@@ -90,7 +105,7 @@ public class PerformanceEmitter implements Runnable {
 						logger.debug("Got tick from collector:\n" + item);
 
 						// Put the item in the queue
-						this.kestrel.set(this.queueName, 0, item);
+						this.client.set(this.queueName, 0, item);
 						// Try and get another item
 						count++;
 						item = collector.poll();
@@ -139,10 +154,4 @@ public class PerformanceEmitter implements Runnable {
 //
 //		this.retries++;
 //	}
-
-	public void cancel() {
-
-		logger.info("Cancel requested, will exit soon.");
-		this.cancelled = true;
-	}
 }

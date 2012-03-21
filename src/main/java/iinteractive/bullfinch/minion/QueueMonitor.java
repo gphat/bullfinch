@@ -1,20 +1,67 @@
-package iinteractive.bullfinch;
+package iinteractive.bullfinch.minion;
+
+import iinteractive.bullfinch.ConfigurationException;
+import iinteractive.bullfinch.PerformanceCollector;
+import iinteractive.bullfinch.ProcessTimeoutException;
 
 import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 
-import net.rubyeye.xmemcached.MemcachedClient;
 import net.rubyeye.xmemcached.exception.MemcachedException;
 
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public abstract class QueueMonitoringMinion extends Minion {
+/**
+ * QueueMonitor is a convenience class for writing minions that subscribe to
+ * kestrel queues for message processing.  It wraps the get/process/confirm
+ * loop.
+ *
+ * The setup of kestrel and connection to same are provided by KestrelBased,
+ * so you should consult that class for configuration information.
+ *
+ * Extenders of this class should implement the handle method.  The aforementioned
+ * loop calls handle with a HashMap<String,Object> containing the incoming
+ * request decoded from JSON.
+ *
+ * @author gphat
+ *
+ */
+public abstract class QueueMonitor extends KestrelBased {
 
-	public QueueMonitoringMinion(PerformanceCollector collector, MemcachedClient client, String queueName, Integer timeout) {
+	static Logger logger = LoggerFactory.getLogger(QueueMonitor.class);
+	private String queueName;
+	private int timeout;
+    private JSONParser parser = new JSONParser();
 
-		super(collector, client, queueName, timeout);
+	public QueueMonitor(PerformanceCollector collector) {
+
+		super(collector);
+	}
+
+	public void setTimeout(int timeout) {
+
+		this.timeout = timeout;
+	}
+
+	@Override
+	public void configure(HashMap<String,Object> config) throws Exception {
+
+		super.configure(config);
+		queueName = (String) config.get("subscribe_to");
+		if(queueName == null) {
+			throw new ConfigurationException("Each worker must have a subscribe_to!");
+		}
+
+		Long timeoutLng = (Long) config.get("timeout");
+		if(timeoutLng == null) {
+			throw new ConfigurationException("Each worker must have a timeout!");
+		}
+		timeout = timeoutLng.intValue();
 	}
 
 	/**
@@ -26,6 +73,9 @@ public abstract class QueueMonitoringMinion extends Minion {
 	public void run() {
 
 		logger.debug("Began minion");
+		if(this.client == null) {
+			System.out.println("##### NULL CLIENT");
+		}
 
 		while(this.shouldContinue()) {
 			try {
@@ -33,7 +83,7 @@ public abstract class QueueMonitoringMinion extends Minion {
 				// We're adding 1000 (1 second) to the queue timeout to let
 				// xmemcached have some breathing room. Kestrel will timeout
 				// by itself.
-				String val = this.kestrel.get(this.queueName + "/t=" + this.timeout + "/open", this.timeout);
+				String val = this.client.get(this.queueName + "/t=" + this.timeout + "/open", this.timeout);
 
 				if (val != null) {
 					try {
@@ -43,7 +93,7 @@ public abstract class QueueMonitoringMinion extends Minion {
 					}
 					// confirm the item we took off the queue.
 					logger.debug("Closing item from queue");
-					this.kestrel.get(this.queueName + "/close");
+					this.client.get(this.queueName + "/close");
 				}
 			} catch (TimeoutException e) {
 				logger.debug("Timeout expired, cycling");
@@ -63,17 +113,6 @@ public abstract class QueueMonitoringMinion extends Minion {
 			}
 		}
 	}
-
-	/**
-	 * Handle a request. Classes extending QueueMonitoring minion should
-	 * implement this method.
-	 *
-	 * @param collector A PerformanceCollector instance
-	 * @param request The request!
-	 * @return An iterator of strings, suitable for returning to the caller.
-	 * @throws Exception
-	 */
-	public abstract Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws ProcessTimeoutException;
 
 	private void process(String val) throws ProcessTimeoutException {
 		JSONObject request = null;
@@ -121,4 +160,15 @@ public abstract class QueueMonitoringMinion extends Minion {
 		// Top if off with an EOF.
 		sendMessage(responseQueue, "{ \"EOF\":\"EOF\" }");
 	}
+
+	/**
+	 * Handle a request. Classes extending QueueMonitoring minion should
+	 * implement this method.
+	 *
+	 * @param collector A PerformanceCollector instance
+	 * @param request The request!
+	 * @return An iterator of strings, suitable for returning to the caller.
+	 * @throws Exception
+	 */
+	public abstract Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws ProcessTimeoutException;
 }

@@ -2,20 +2,27 @@
     "config_refresh_seconds": 300,
 	"performance": {
 		"collect": false,
-        "kestrel_host" : "127.0.0.1",
-            "kestrel_port" : 22133,
-		"queue": "metrics"
 	},
     "workers" : [
         {
+            "name" : "Performance Emitter",
+            "worker_class" : "iinteractive.bullfinch.minion.PerformanceEmitter",
+            "worker_count" : 1,
+            "options": {
+                "kestrel_host": "127.0.0.1",
+                "kestrel_port" : 22133,
+                "queue": "metrics"
+            }
+        },
+        {
             "name" : "JDBC Worker",
-            "kestrel_host" : "127.0.0.1",
-            "kestrel_port" : 22133,
             "worker_class" : "iinteractive.bullfinch.JDBCWorker",
             "worker_count" : 2,
-            "subscribe_to" : "test-net-kestrel",
-            "timeout" : 10000,
             "options"  : {
+                "kestrel_host" : "127.0.0.1",
+                "kestrel_port" : 22133,
+                "subscribe_to" : "test-net-kestrel",
+                "timeout" : 10000,
                 "connection" : {
                     "driver" : "com.mysql.jdbc.Driver",
                     "dsn" : "jdbc:mysql://localhost/test",
