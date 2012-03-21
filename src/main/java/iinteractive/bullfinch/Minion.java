@@ -1,21 +1,21 @@
 package iinteractive.bullfinch;
 
-import java.io.StringReader;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 
 import net.rubyeye.xmemcached.MemcachedClient;
 import net.rubyeye.xmemcached.exception.MemcachedException;
 
-import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A minion is a threadified instance of a Worker that knows how to talk to the
+ * A minion is a threadified worker that knows how to talk to the
  * kestrel queue.
+ *
+ * This class provides a constructor, abstract configuration method and a
+ * simple cancel mechanism.
  *
  * @author gphat
  *
@@ -23,13 +23,13 @@ import org.slf4j.LoggerFactory;
 public abstract class Minion implements Runnable {
 
 	static Logger logger = LoggerFactory.getLogger(Minion.class);
-	private PerformanceCollector collector;
-	private String queueName;
-	private MemcachedClient kestrel;
-	private int timeout;
-	private JSONParser parser;
+	protected PerformanceCollector collector;
+	protected String queueName;
+	protected MemcachedClient kestrel;
+	protected int timeout;
+	protected JSONParser parser;
 
-	private volatile boolean cancelled = false;
+	protected volatile boolean cancelled = false;
 
 	public void setTimeout(int timeout) {
 
@@ -63,121 +63,15 @@ public abstract class Minion implements Runnable {
 	public abstract void configure(HashMap<String,Object> config) throws Exception;
 
 	/**
-	 * Handle a request.
-	 *
-	 * @param request The request!
-	 * @return An iterator of strings, suitable for returning to the caller.
-	 * @throws Exception
+	 * Run the thread.
 	 */
-	public abstract Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws ProcessTimeoutException;
-
-	/**
-	 * Run the thread.  This method will call a get() on the queue, waiting on
-	 * the timeout.  When it gets a message it will pass it off to the worker
-	 * to handle.
-	 */
-	@SuppressWarnings("unchecked")
-	public void run() {
-
-		logger.debug("Began minion");
-
-		try {
-			this.loop();
-		} catch (Exception e) {
-			logger.error("Error in worker thread, exiting", e);
-			return;
-		}
-	}
-
-	private void loop() throws Exception {
-		while(!Thread.currentThread().isInterrupted() && !cancelled) {
-			try {
-				logger.debug("Opening item from queue");
-				// We're adding 1000 (1 second) to the queue timeout to let
-				// xmemcached have some breathing room. Kestrel will timeout
-				// by itself.
-				String val = this.kestrel.get(this.queueName + "/t=" + this.timeout + "/open", this.timeout);
-
-				if (val != null) {
-					try {
-						process(val);
-					} catch (ProcessTimeoutException e) {
-						// ignore a timeout exception
-					}
-					// confirm the item we took off the queue.
-					logger.debug("Closing item from queue");
-					this.kestrel.get(this.queueName + "/close");
-				}
-			} catch (TimeoutException e) {
-				logger.debug("Timeout expired, cycling");
-			} catch (MemcachedException e) {
-				logger.error("Caught exception from memcached", e);
-				/* Lets sleep for 5 seconds so as not to hammer the xmemcached
-				 * library.
-				 */
-				Thread.sleep(5000);
-			} catch(RuntimeException e) {
-				/* Rethrow RTE */
-				throw(e);
-			} catch (Exception e) {
-				logger.error("Unknown exception in processing loop", e);
-				/* Sleep for longer since we have no idea what's broken. */
-				Thread.sleep(30000);
-			}
-		}
-	}
-
-	private void process(String val) throws ProcessTimeoutException {
-		JSONObject request = null;
-
-		logger.debug("Got item from queue:\n" + val);
-
-		try {
-			request = (JSONObject) parser.parse(new StringReader(val));
-		} catch (Error e) {
-			logger.warn("unable to parse input, ignoring");
-			return;
-		} catch (Exception e) {
-			logger.warn("unable to parse input, ignoring");
-			return;
-		}
-
-		if(request == null) {
-			logger.warn("Failed to parse request, ignoring");
-			return;
-		}
-
-		// Try and get the response queue.
-		String responseQueue = (String) request.get("response_queue");
-		if(responseQueue == null) {
-			logger.debug("request did not contain a response queue");
-			return;
-		}
-		logger.debug("Response will go to " + responseQueue);
-
-		// Get a list of items back from the worker
-		Iterator<String> items = this.handle(collector, request);
-
-		// Send those items back into the queue
-
-		long start = System.currentTimeMillis();
-		while(items.hasNext()) {
-			sendMessage(responseQueue, items.next());
-		}
-		collector.add(
-			"ResultSet iteration and queue insertion",
-			System.currentTimeMillis() - start,
-			(String) request.get("tracer")
-		);
-		// Top if off with an EOF.
-		sendMessage(responseQueue, "{ \"EOF\":\"EOF\" }");
-	}
+	public abstract void run();
 
 	/*
 	 * Convenience method that wraps kestrel.set so that network errors and
 	 * whatnot will get handled and responses will get sent.
 	 */
-	private void sendMessage(String queue, String message) {
+	protected void sendMessage(String queue, String message) {
 
 		boolean notSent = true;
 		while(notSent) {
@@ -197,6 +91,15 @@ public abstract class Minion implements Runnable {
 		}
 	}
 
+	public boolean shouldContinue() {
+		System.out.println("asdasd");
+		// If this thread is interrupted or cancelled is false, it should stop!
+		return !Thread.currentThread().isInterrupted() && !cancelled;
+	}
+
+	/**
+	 * Method for communicating that this thread should stop.
+	 */
 	public void cancel() {
 
 		logger.info("Cancel requested, will exit soon.");

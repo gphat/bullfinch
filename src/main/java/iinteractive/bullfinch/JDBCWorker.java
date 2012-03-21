@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * @author gphat
  *
  */
-public class JDBCWorker extends Minion {
+public class JDBCWorker extends QueueMonitoringMinion {
 
 	static Logger logger = LoggerFactory.getLogger(JDBCWorker.class);
 
