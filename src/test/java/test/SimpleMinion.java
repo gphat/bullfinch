@@ -50,7 +50,7 @@ public class SimpleMinion {
 
 		PerformanceCollector pc = new PerformanceCollector("foo", false);
 
-		Minion m = new Minion(pc, mockClient, queueName, 1000);
+		Minion m = new Minion(pc);
 		try {
 			m.run();
 		} catch(Exception e) {
@@ -90,7 +90,7 @@ public class SimpleMinion {
 
 		PerformanceCollector pc = new PerformanceCollector("foo", false);
 
-		Minion m = new Minion(pc, mockClient, queueName, 1000);
+		Minion m = new Minion(pc);
 		try {
 			m.run();
 		} catch(Exception e) {

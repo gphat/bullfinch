@@ -78,35 +78,35 @@ public class JDBCMinion extends QueueMonitor {
 			}
 			this.durTTLProcessByDefault = Duration.parse(ttl);
 		} catch (Exception e) {
-			throw new Exception("Configuration contains invalid default_process_by_ttl");
+			throw new Exception("JDBCMinion configuration contains invalid default_process_by_ttl");
 		}
 
 		@SuppressWarnings("unchecked")
 		HashMap<String,String> connConfig = (HashMap<String,String>) config.get("connection");
 		if(connConfig == null) {
-			throw new Exception("Configuration needs a 'connection' section");
+			throw new Exception("JDBCMinion configuration needs a 'connection' section");
 		}
 
 		this.driver = connConfig.get("driver");
 		if(this.driver == null) {
-			throw new Exception("Configuration needs a connection -> driver");
+			throw new Exception("JDBCMinion configuration needs a connection -> driver");
 		}
 
 		this.dsn = connConfig.get("dsn");
 		if(this.dsn == null) {
-			throw new Exception("Configuration needs a connection -> dsn");
+			throw new Exception("JDBCMinion configuration needs a connection -> dsn");
 		}
 
 		this.username = connConfig.get("uid");
 		if(this.username == null) {
-			throw new Exception("Configuration needs a connection -> username");
+			throw new Exception("JDBCMinion configuration needs a connection -> username");
 		}
 
 		this.password = connConfig.get("pwd");
 
 		this.validationQuery = connConfig.get("validation");
 		if(this.validationQuery == null) {
-			throw new Exception("Configuration needs a connection -> validation");
+			throw new Exception("JDBCMinion configuration needs a connection -> validation");
 		}
 
 		// Setup our connection pool

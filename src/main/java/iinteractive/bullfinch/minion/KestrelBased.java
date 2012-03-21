@@ -40,16 +40,15 @@ public abstract class KestrelBased extends Minion {
 
 		String workHost = (String) config.get("kestrel_host");
 		if(workHost == null) {
-			throw new ConfigurationException("Each worker must have a kestrel_host!");
+			throw new ConfigurationException("Each kestrel-based worker must have a kestrel_host!");
 		}
 
 		Long workPortLng = (Long) config.get("kestrel_port");
 		if(workPortLng == null) {
-			throw new ConfigurationException("Each worker must have a kestrel_port!");
+			throw new ConfigurationException("Each kestrel-based worker must have a kestrel_port!");
 		}
 		int workPort = workPortLng.intValue();
 
-		System.out.println("XXXX Setting up connection");
 		// Give it a kestrel connection.
 		MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
 		builder.setCommandFactory(new KestrelCommandFactory());
