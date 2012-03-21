@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.minion.JDBCMinion;
 
@@ -15,8 +14,6 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Iterator;
-
-import net.rubyeye.xmemcached.MemcachedClient;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -53,10 +50,7 @@ public class Simple {
 			this.conn = conn;
 
 			JDBCMinion worker = new JDBCMinion(
-				new PerformanceCollector("foo", false),
-				mock(MemcachedClient.class),
-				"foobar",
-				1000
+				new PerformanceCollector("foo", false)
 			);
 
 			JSONParser parser = new JSONParser();

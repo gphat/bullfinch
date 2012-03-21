@@ -148,7 +148,7 @@ public class SimpleMinion {
 			fail("Failed to stub handle method for worker");
 		}
 
-		Minion m = new Minion(pc, mockClient, "foobar", mockWorker, 1000);
+		Minion m = new Minion(pc);
 		try {
 			m.run();
 		} catch(Exception e) {
