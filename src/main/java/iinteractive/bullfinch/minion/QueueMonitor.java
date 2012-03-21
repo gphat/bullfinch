@@ -73,9 +73,6 @@ public abstract class QueueMonitor extends KestrelBased {
 	public void run() {
 
 		logger.debug("Began minion");
-		if(this.client == null) {
-			System.out.println("##### NULL CLIENT");
-		}
 
 		while(this.shouldContinue()) {
 			try {

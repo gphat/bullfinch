@@ -4,7 +4,6 @@ import iinteractive.bullfinch.PerformanceCollector;
 
 import java.util.HashMap;
 
-import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,22 +16,8 @@ import org.slf4j.LoggerFactory;
 public class PerformanceEmitter extends KestrelBased {
 
 	static Logger logger = LoggerFactory.getLogger(PerformanceEmitter.class);
-	private JSONParser parser;
 
-	private int retries = 0;
-	private int retryTime = 20;
-	private int retryAttempts = 5;
-	private long interval = 10000;
-
-	public void setRetryAttempts(int retryAttempts) {
-
-		this.retryAttempts = retryAttempts;
-	}
-
-	public void setRetryTime(int retryTime) {
-
-		this.retryTime = retryTime;
-	}
+	private long interval = 60000;
 
 	/**
 	 * Create a new emitter.
@@ -42,8 +27,6 @@ public class PerformanceEmitter extends KestrelBased {
 	public PerformanceEmitter(PerformanceCollector collector) {
 
 		super(collector);
-
-		this.parser = new JSONParser();
 	}
 
 	@Override
@@ -59,80 +42,39 @@ public class PerformanceEmitter extends KestrelBased {
 	 * Run the thread.  This method will sleep for INTERVAL milliseconds, then
 	 * attempt to empty out the collector.
 	 *
-	 * Note: If an Exception is caught in communicating with the kestrel queue
-	 * then we'll make use of retryTime and retryAttempts.  First, we'll sleep
-	 * for retryTime seconds, up to retryAttempts times before we
+	 * Note: If an Exception is caught in communicating with kestrel then we'll
+	 * just keep trying forever.
 	 *
 	 */
-	@SuppressWarnings("unchecked")
 	public void run() {
 
-		logger.debug("Began emitter thread with time of " + interval + ", retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
+		logger.debug("Began emitter thread with time of " + interval + ".");
 
 		try {
-			// We are using nested tries because we want to attempt to reconnect
-			// on some connections.
-			try {
-				while(this.shouldContinue()) {
+			while(this.shouldContinue()) {
 
-					// Sleep for a bit.
-					Thread.sleep(interval);
+				// Sleep for a bit.
+				Thread.sleep(interval);
 
-					logger.debug("Emitter expired.");
+				logger.debug("Emitter expired.");
+				String item = collector.poll();
+				int count = 0;
+				while(item != null) {
+					logger.debug("Got tick from collector:\n" + item);
 
-					String item = collector.poll();
-					int count = 0;
-					while(item != null) {
-						logger.debug("Got tick from collector:\n" + item);
-
-						// Put the item in the queue
-						this.client.set(this.queueName, 0, item);
-						// Try and get another item
-						count++;
-						item = collector.poll();
-					}
-					if(count > 0) {
-						logger.debug("Removed " + count + " items from the queue.");
-					}
-					logger.debug("Timeout expired, cycling");
-					// Reset the retry counter, since we had a successful cycle.
-					retries = 0;
+					// Put the item in the queue
+					this.client.set(this.queueName, 0, item);
+					// Try and get another item
+					count++;
+					item = collector.poll();
 				}
-			} catch(InterruptedException e) {
-				// In case we get an interrupt for whatever reason
-				logger.info("Caught interrupt, exiting.");
-				return;
-			} catch(Exception e) {
-				logger.error("Got an Exception, attempting to retry", e);
-//				pauseForRetry(e);
+				if(count > 0) {
+					logger.debug("Removed " + count + " items from the queue.");
+				}
 			}
 		} catch(Exception e) {
-			logger.error("Error in worker thread, exiting", e);
-			return;
+			logger.error("Got an Exception, sleeping 30 seconds before retrying", e);
+			try { Thread.sleep(30000); } catch(InterruptedException ie) { Thread.currentThread().interrupt(); }
 		}
 	}
-
-//	private void pauseForRetry(Exception e) throws IOException {
-//
-//		logger.debug("Currently at " + retries + " retries.");
-//
-//		// Check if we can retry
-//		if(this.retries >= this.retryAttempts) {
-//			// Abort! We can't get a solid connection.
-//			logger.error("Retry attempts exceeded, exiting", e);
-//			throw new IOException(e);
-//		}
-//
-//		// Yield real quick for other threads
-//		Thread.yield();
-//
-//		// Sleep for the prescribed retry time
-//		logger.warn("Caught an exception, sleeping for " + this.retryTime + " seconds.");
-//		try { Thread.sleep(this.retryTime * 1000); } catch(Exception ex) { logger.error("Retry sleep interrupted"); }
-//
-//		this.kestrel.disconnect();
-//		this.kestrel.connect();
-//
-//		this.retries++;
-//	}
 }
