@@ -28,9 +28,9 @@ import org.slf4j.LoggerFactory;
  * @author gphat
  *
  */
-public class JDBCMinion extends QueueMonitor {
+public class JDBCQueryRunner extends QueueMonitor {
 
-	static Logger logger = LoggerFactory.getLogger(JDBCMinion.class);
+	static Logger logger = LoggerFactory.getLogger(JDBCQueryRunner.class);
 
 	private String driver;
 	private String dsn;
@@ -43,7 +43,7 @@ public class JDBCMinion extends QueueMonitor {
 
 	private BasicDataSource ds;
 
-	public JDBCMinion(PerformanceCollector collector) {
+	public JDBCQueryRunner(PerformanceCollector collector) {
 
 		super(collector);
 		this.statementBook = new Phrasebook();

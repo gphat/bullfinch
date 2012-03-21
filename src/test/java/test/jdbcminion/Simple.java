@@ -5,7 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import iinteractive.bullfinch.PerformanceCollector;
-import iinteractive.bullfinch.minion.JDBCMinion;
+import iinteractive.bullfinch.minion.JDBCQueryRunner;
 
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -26,7 +26,7 @@ import org.junit.Test;
 public class Simple {
 
 	private Connection conn;
-	private JDBCMinion worker;
+	private JDBCQueryRunner worker;
 	private PerformanceCollector pc = new PerformanceCollector("test", false);
 
 	@Before
@@ -49,7 +49,7 @@ public class Simple {
 
 			this.conn = conn;
 
-			JDBCMinion worker = new JDBCMinion(
+			JDBCQueryRunner worker = new JDBCQueryRunner(
 				new PerformanceCollector("foo", false)
 			);
 
@@ -83,7 +83,7 @@ public class Simple {
 	 */
 	public void testMissingParams() {
 
-		JDBCMinion worker = this.worker;
+		JDBCQueryRunner worker = this.worker;
 
 		try {
 			HashMap<String,Object> request = new HashMap<String,Object>();
@@ -105,7 +105,7 @@ public class Simple {
 	 */
 	public void testInt() {
 
-		JDBCMinion worker = this.worker;
+		JDBCQueryRunner worker = this.worker;
 
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getInt\",\"params\":[12]}");
@@ -126,7 +126,7 @@ public class Simple {
 	 */
 	public void testFloat() {
 
-		JDBCMinion worker = this.worker;
+		JDBCQueryRunner worker = this.worker;
 
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getFloat\",\"params\":[3.14]}");
@@ -147,7 +147,7 @@ public class Simple {
 	 */
 	public void testBool() {
 
-		JDBCMinion worker = this.worker;
+		JDBCQueryRunner worker = this.worker;
 
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getBool\",\"params\":[true]}");
@@ -168,7 +168,7 @@ public class Simple {
 	 */
 	public void testString() {
 
-		JDBCMinion worker = this.worker;
+		JDBCQueryRunner worker = this.worker;
 
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getString\",\"params\":[\"cory\"]}");
@@ -187,7 +187,7 @@ public class Simple {
 	@Test
 	public void testBadTable() {
 
-		JDBCMinion worker = this.worker;
+		JDBCQueryRunner worker = this.worker;
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"badTable\"}");
 			Iterator<String> iter = worker.handle(pc, request);
@@ -208,7 +208,7 @@ public class Simple {
 
 	@Test
 	public void testInsert() {
-		JDBCMinion worker = this.worker;
+		JDBCQueryRunner worker = this.worker;
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"addOne\"}");
 			Iterator<String> iter = worker.handle(pc,  request);
