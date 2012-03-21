@@ -1,14 +1,8 @@
 package iinteractive.bullfinch.minion;
 
-import iinteractive.bullfinch.ConfigurationException;
 import iinteractive.bullfinch.PerformanceCollector;
 
 import java.util.HashMap;
-
-import net.rubyeye.xmemcached.MemcachedClientBuilder;
-import net.rubyeye.xmemcached.XMemcachedClientBuilder;
-import net.rubyeye.xmemcached.command.KestrelCommandFactory;
-import net.rubyeye.xmemcached.utils.AddrUtil;
 
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
@@ -28,6 +22,7 @@ public class PerformanceEmitter extends KestrelBased {
 	private int retries = 0;
 	private int retryTime = 20;
 	private int retryAttempts = 5;
+	private long interval = 10000;
 
 	public void setRetryAttempts(int retryAttempts) {
 
@@ -54,28 +49,14 @@ public class PerformanceEmitter extends KestrelBased {
 	@Override
 	public void configure(HashMap<String,Object> config) throws Exception {
 
-		String workHost = (String) config.get("kestrel_host");
-		if(workHost == null) {
-			throw new ConfigurationException("Each worker must have a kestrel_host!");
+		Long intervalLng = (Long) config.get("interval");
+		if(intervalLng != null) {
+			interval = intervalLng.intValue();
 		}
-
-		Long workPortLng = (Long) config.get("kestrel_port");
-		if(workPortLng == null) {
-			throw new ConfigurationException("Each worker must have a kestrel_port!");
-		}
-		int workPort = workPortLng.intValue();
-
-		// Give it a kestrel connection.
-		MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
-		builder.setCommandFactory(new KestrelCommandFactory());
-		builder.setFailureMode(true);
-		client = builder.build();
-		client.setEnableHeartBeat(false);
-		client.setPrimitiveAsString(true);
 	}
 
 	/**
-	 * Run the thread.  This method will sleep for TIMEOUT seconds, then
+	 * Run the thread.  This method will sleep for INTERVAL milliseconds, then
 	 * attempt to empty out the collector.
 	 *
 	 * Note: If an Exception is caught in communicating with the kestrel queue
@@ -86,16 +67,16 @@ public class PerformanceEmitter extends KestrelBased {
 	@SuppressWarnings("unchecked")
 	public void run() {
 
-		logger.debug("Began emmitter thread with time of XXX, retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
+		logger.debug("Began emitter thread with time of " + interval + ", retry time of " + this.retryTime + " and " + this.retryAttempts + " attempts.");
 
 		try {
 			// We are using nested tries because we want to attempt to reconnect
 			// on some connections.
 			try {
-				while(!Thread.currentThread().isInterrupted() && !cancelled) {
+				while(this.shouldContinue()) {
 
 					// Sleep for a bit.
-					Thread.sleep(1000);
+					Thread.sleep(interval);
 
 					logger.debug("Emitter expired.");
 
