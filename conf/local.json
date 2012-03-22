@@ -11,7 +11,7 @@
             "options": {
                 "kestrel_host": "127.0.0.1",
                 "kestrel_port" : 22133,
-                "queue": "metrics"
+                "queue": "metrics",
             }
         },
         {
