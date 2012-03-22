@@ -178,10 +178,6 @@ public class Minion implements Runnable {
 			} catch(TimeoutException e) {
 				logger.error("Timed out sending EOF to complete response", e);
 				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
-			} catch(Exception e) {
-				// Catchall for everything else
-				logger.error("Other error from sending to kestrel" , e);
-				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
 			}
 			if(retries >= 20) {
 				// We can't try forever.  We have to give up eventually.
