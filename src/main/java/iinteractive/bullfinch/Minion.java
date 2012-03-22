@@ -158,13 +158,19 @@ public class Minion implements Runnable {
 	 */
 	private void sendMessage(String queue, String message) {
 
+		if(message == null) {
+			logger.warn("Ignoring empty response we were suppsoed to send to kestrel");
+			return;
+		}
+
+		int retries = 0;
 		boolean notSent = true;
 		while(notSent) {
 			try {
 				this.kestrel.set(queue, 0, message);
 				notSent = false;
 			} catch(MemcachedException e) {
-				logger.error("Error sending EOF to complete response", e);
+				logger.error("Error sending response to kestrel", e);
 				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
 			} catch(InterruptedException e) {
 				logger.error("Interrupted", e);
@@ -172,7 +178,18 @@ public class Minion implements Runnable {
 			} catch(TimeoutException e) {
 				logger.error("Timed out sending EOF to complete response", e);
 				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
+			} catch(Exception e) {
+				// Catchall for everything else
+				logger.error("Other error from sending to kestrel" , e);
+				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
 			}
+			if(retries >= 20) {
+				// We can't try forever.  We have to give up eventually.
+				logger.error("Abandoning response to kestrel, couldn't send after 20 tries.");
+				logger.error("Response meant for '" + queue + "': " + message);
+				notSent = false;
+			}
+			retries++;
 		}
 	}
 
