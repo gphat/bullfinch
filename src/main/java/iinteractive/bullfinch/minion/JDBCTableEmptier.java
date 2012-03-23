@@ -3,21 +3,23 @@ package iinteractive.bullfinch.minion;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.Phrasebook;
 import iinteractive.bullfinch.Phrasebook.ParamType;
+import iinteractive.bullfinch.util.JSONResultSetWrapper;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.dbcp.BasicDataSource;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A worker for executing JDBC statements over kestrel queues.
+ * A worker for executing running a query that finds rows and deletes them
+ * after successfully sending them to kestrel.
  *
  * @author gphat
  *
@@ -26,13 +28,11 @@ public class JDBCTableEmptier extends KestrelBased {
 
 	static Logger logger = LoggerFactory.getLogger(JDBCTableEmptier.class);
 
-	private String driver;
-	private String dsn;
-	private String username;
-	private String password;
-	private String validationQuery;
-	private Duration durTTLProcessByDefault;
 	private long interval = 60000;
+	private String publishTo;
+	private String selectQuery;
+	private String deleteQuery;
+	private String deleteKey;
 
 	private Phrasebook statementBook;
 
@@ -41,24 +41,13 @@ public class JDBCTableEmptier extends KestrelBased {
 	public JDBCTableEmptier(PerformanceCollector collector) {
 
 		super(collector);
-		this.statementBook = new Phrasebook();
 	}
 
 	/**
 	 * Configure the worker.
 	 *
 	 * The configuration is expected to contain statements and (optionally)
-	 * parameters:
 	 *
-	 * "statements" : {
-     * 		"getAllAddresses" : {
-     *          "sql"    : "SELECT * FROM address",
-     *       },
-     *       "getAllActiveECodesByPage" : {
-     *           "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
-     *           "params" : [ "INTEGER", "INTEGER" ]
-     *       }
-     *   }
 	 *
 	 * @param config
 	 * @throws Exception
@@ -67,45 +56,76 @@ public class JDBCTableEmptier extends KestrelBased {
 
 		super.configure(config);
 
+		// Not going to try anything fancy here.  If this fails, then
+		// the exception will bubble all the way up.
+		ds = new BasicDataSource();
+
+		// Only allow one connection, as we're not really using this for the
+		// pooling so much as the connection verification and whatnot.
+		ds.setMaxActive(1);
+		ds.setMaxIdle(1);
+		ds.setPoolPreparedStatements(true);
+		ds.setTestOnBorrow(true);
+		ds.setTestWhileIdle(true);
+
 		@SuppressWarnings("unchecked")
 		HashMap<String,String> connConfig = (HashMap<String,String>) config.get("connection");
 		if(connConfig == null) {
-			throw new Exception("JDBCTableEmptier configuration needs a 'connection' section");
+			throw new Exception("JDBCTableEmptier configuration needs a connection section");
 		}
 
-		this.driver = connConfig.get("driver");
-		if(this.driver == null) {
+		String driver = connConfig.get("driver");
+		if(driver == null) {
 			throw new Exception("JDBCTableEmptier configuration needs a connection -> driver");
 		}
+		ds.setDriverClassName(driver);
 
-		this.dsn = connConfig.get("dsn");
-		if(this.dsn == null) {
-			throw new Exception("JDBCTableEmptier configuration needs a connection -> dsn");
-		}
-
-		this.username = connConfig.get("uid");
-		if(this.username == null) {
+		String username = connConfig.get("uid");
+		if(username == null) {
 			throw new Exception("JDBCTableEmptier configuration needs a connection -> username");
 		}
+		ds.setUsername(username);
 
-		this.password = connConfig.get("pwd");
+		ds.setPassword(connConfig.get("pwd"));
 
-		this.validationQuery = connConfig.get("validation");
-		if(this.validationQuery == null) {
+		String validationQuery = connConfig.get("validation");
+		if(validationQuery == null) {
 			throw new Exception("JDBCTableEmptier configuration needs a connection -> validation");
 		}
+		ds.setValidationQuery(validationQuery);
+
+		String dsn = connConfig.get("dsn");
+		if(dsn == null) {
+			throw new Exception("JDBCTableEmptier configuration needs a connection -> dsn");
+		}
+		ds.setUrl(dsn);
 
 		Long intervalLng = (Long) config.get("interval");
 		if(intervalLng != null) {
 			interval = intervalLng.intValue();
 		}
 
-		// Setup our connection pool
-		this.ds = connect();
+		publishTo = (String) config.get("publish_to");
+		if(publishTo == null) {
+			throw new Exception("JDBCTableEmptier configuration needs publish_to");
+		}
 
-		// Get the statement config
-		@SuppressWarnings("unchecked")
-		HashMap<String,HashMap<String,Object>> statements = (HashMap<String,HashMap<String,Object>>) config.get("statements");
+		selectQuery = (String) config.get("select_query");
+		if(selectQuery == null) {
+			throw new Exception("JDBCTableEmptier configuration needs select_query");
+		}
+
+		deleteQuery = (String) config.get("delete_query");
+		if(selectQuery == null) {
+			throw new Exception("JDBCTableEmptier configuration needs delete_query");
+		}
+
+		deleteKey = (String) config.get("delete_key");
+		if(deleteKey == null) {
+			throw new Exception("JDBCTableEmptier configuration needs delete_key");
+		}
+
+		// Setup our connection pool
 	}
 
 	/**
@@ -118,7 +138,7 @@ public class JDBCTableEmptier extends KestrelBased {
 	 */
 	public void run() {
 
-		logger.debug("Began emitter thread with time of " + interval + ".");
+		logger.debug("Began JDBCTableEmptier thread with time of " + interval + ".");
 
 		try {
 			while(this.shouldContinue()) {
@@ -127,33 +147,53 @@ public class JDBCTableEmptier extends KestrelBased {
 				Thread.sleep(interval);
 
 				logger.debug("Emptier expired.");
+				Connection conn = null;
+				PreparedStatement selectStatement = null;
+				PreparedStatement deleteStatement = null;
+				try {
+					conn = ds.getConnection();
+					conn.setAutoCommit(false);
+
+					// Get our queries ready
+					selectStatement = conn.prepareStatement(selectQuery);
+					deleteStatement = conn.prepareStatement(deleteQuery);
+
+					selectStatement.execute();
+					ResultSet rs = selectStatement.getResultSet();
+					JSONResultSetWrapper wrapper = new JSONResultSetWrapper("", rs); // XXX fix tracer
+					while(wrapper.hasNext()) {
+						sendMessage(publishTo, wrapper.next());
+						// Need to bind param here
+						deleteStatement.execute();
+						conn.commit();
+					}
+				} catch(SQLException e) {
+					logger.error("Error fetching/deleting rows.", e);
+					if(conn != null) {
+						logger.warn("Rolling back!");
+						conn.rollback();
+					}
+				} finally {
+					if(selectStatement != null) {
+						selectStatement.close();
+					}
+					if(deleteStatement != null) {
+						deleteStatement.close();
+					}
+					if(conn != null) {
+						try {
+							conn.setAutoCommit(true);
+							conn.close();
+						} catch(SQLException e) {
+							logger.error("Failed to close connection", e);
+						}
+					}
+				}
 			}
 		} catch(Exception e) {
 			logger.error("Got an Exception, sleeping 30 seconds before retrying", e);
 			try { Thread.sleep(30000); } catch(InterruptedException ie) { Thread.currentThread().interrupt(); }
 		}
-	}
-
-	private BasicDataSource connect() throws Exception {
-
-		// Not going to try anything fancy here.  If this fails, then
-		// the exception will bubble all the way up.
-		BasicDataSource ds = new BasicDataSource();
-
-		// Only allow one connection, as we're not really using this for the
-		// pooling so much as the connection verification and whatnot.
-		ds.setMaxActive(1);
-		ds.setMaxIdle(1);
-		ds.setPoolPreparedStatements(true);
-		ds.setTestOnBorrow(true);
-		ds.setTestWhileIdle(true);
-		ds.setValidationQuery(this.validationQuery);
-
-		ds.setDriverClassName(this.driver);
-		ds.setUsername(this.username);
-		ds.setPassword(this.password);
-		ds.setUrl(this.dsn);
-		return ds;
 	}
 
 	/*

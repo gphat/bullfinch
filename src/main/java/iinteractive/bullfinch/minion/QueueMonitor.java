@@ -3,8 +3,8 @@ package iinteractive.bullfinch.minion;
 import iinteractive.bullfinch.ConfigurationException;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.ProcessTimeoutException;
+import iinteractive.bullfinch.util.RequestWithResponseParser;
 
-import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
@@ -72,8 +72,6 @@ public abstract class QueueMonitor extends KestrelBased {
 	@Override
 	public void run() {
 
-		logger.debug("Began minion");
-
 		while(this.shouldContinue()) {
 			try {
 				logger.debug("Opening item from queue");
@@ -112,31 +110,20 @@ public abstract class QueueMonitor extends KestrelBased {
 	}
 
 	private void process(String val) throws ProcessTimeoutException {
-		JSONObject request = null;
 
 		logger.debug("Got item from queue:\n" + val);
 
+		JSONObject request = null;
+		String responseQueue = null;
 		try {
-			request = (JSONObject) parser.parse(new StringReader(val));
-		} catch (Error e) {
-			logger.warn("unable to parse input, ignoring");
-			return;
+			RequestWithResponseParser rwrp = new RequestWithResponseParser(val);
+			request = rwrp.getJSON();
+			responseQueue = rwrp.getResponseQueue();
 		} catch (Exception e) {
 			logger.warn("unable to parse input, ignoring");
 			return;
 		}
 
-		if(request == null) {
-			logger.warn("Failed to parse request, ignoring");
-			return;
-		}
-
-		// Try and get the response queue.
-		String responseQueue = (String) request.get("response_queue");
-		if(responseQueue == null) {
-			logger.debug("request did not contain a response queue");
-			return;
-		}
 		logger.debug("Response will go to " + responseQueue);
 
 		// Get a list of items back from the worker

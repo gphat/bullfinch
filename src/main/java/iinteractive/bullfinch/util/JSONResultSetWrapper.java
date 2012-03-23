@@ -1,4 +1,4 @@
-package iinteractive.bullfinch;
+package iinteractive.bullfinch.util;
 
 import java.sql.Date;
 import java.sql.ResultSet;

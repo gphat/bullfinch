@@ -1,9 +1,9 @@
 package iinteractive.bullfinch.minion;
 
-import iinteractive.bullfinch.JSONResultSetWrapper;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.Phrasebook;
 import iinteractive.bullfinch.Phrasebook.ParamType;
+import iinteractive.bullfinch.util.JSONResultSetWrapper;
 import iinteractive.bullfinch.ProcessTimeoutException;
 
 import java.sql.Connection;

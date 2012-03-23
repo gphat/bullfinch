@@ -15,8 +15,8 @@
             }
         },
         {
-            "name" : "JDBC Worker",
-            "worker_class" : "iinteractive.bullfinch.JDBCWorker",
+            "name" : "Query Runner",
+            "worker_class" : "iinteractive.bullfinch.minion.JDBCQueryRunner",
             "worker_count" : 2,
             "options"  : {
                 "kestrel_host" : "127.0.0.1",
@@ -52,6 +52,26 @@
                         "sql"    : "SELECT a_string FROM PUBLIC.TEST_TABLE WHERE a_string=?",
                         "params" : [ "STRING" ]
                     },
+                }
+            }
+        },
+        {
+            "name" : "Query Runner",
+            "worker_class" : "iinteractive.bullfinch.minion.JDBCTableEmptier",
+            "worker_count" : 2,
+            "options"  : {
+                "kestrel_host" : "127.0.0.1",
+                "kestrel_port" : 22133,
+                "publish_to" : "test-net-kestrel",
+                "interval": 1000,
+                "select_query": "SELECT * FROM test LIMIT 10",
+                "delete_query": "DELETE FROM test WHERE id=?",
+                "delete_key": "id",
+                "connection" : {
+                    "driver" : "com.mysql.jdbc.Driver",
+                    "dsn" : "jdbc:mysql://localhost/test",
+                    "uid" : "root",
+                    "validation" : "SELECT 1"
                 }
             }
         }
