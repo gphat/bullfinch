@@ -1,6 +1,7 @@
 package iinteractive.bullfinch.util;
 
 import java.sql.Date;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -26,9 +27,15 @@ public class JSONResultSetWrapper implements Iterator<String> {
 	// way we can peek ahead in the hasNext.
 	private boolean checkedNext = false;
 	private boolean hasNext = false;
+	private int keyColumn;
 
 
 	public JSONResultSetWrapper(String tracer, ResultSet rs) throws SQLException {
+
+		this(tracer, null, rs);
+	}
+
+	public JSONResultSetWrapper(String tracer, String keyCol, ResultSet rs) throws SQLException {
 
 		this.tracer = tracer;
 		this.resultSet = rs;
@@ -40,10 +47,56 @@ public class JSONResultSetWrapper implements Iterator<String> {
 			this.columnNames = new String[this.columnCount];
 			this.columnTypes = new int[this.columnCount];
 			for (int i = 0; i < this.columnCount; i++) {
-				columnNames[i] = metadata.getColumnName(i + 1);
+				String name = metadata.getColumnName(i + 1);
+				logger.debug("XXXXXX curr: " + name + ": " + keyCol);
+				if((keyCol != null) && (keyCol.equals(name))) {
+					keyColumn = i + 1;
+					logger.debug("XXXXXX Key column index is " + keyColumn);
+				}
+				columnNames[i] = name;
 				columnTypes[i] = metadata.getColumnType(i + 1);
 			}
 		}
+	}
+
+	/**
+	 * Binds the "key" column as found by the constructor to the passed in
+	 * PreparedStatement.  This is primarily to facilitate the deletion of
+	 * rows.
+	 *
+	 * @param ps
+	 * @throws SQLException
+	 */
+	public void bindKeyToQuery(PreparedStatement ps) throws SQLException {
+
+        switch (this.columnTypes[this.keyColumn - 1]) {
+	        case Types.CHAR        :
+	        case Types.VARCHAR     :
+	        case Types.LONGVARCHAR :
+	        	ps.setString(keyColumn, resultSet.getString(keyColumn));
+	            break;
+	        case Types.NUMERIC :
+	        case Types.DECIMAL :
+	        	ps.setBigDecimal(keyColumn, resultSet.getBigDecimal(keyColumn));
+	            break;
+	        case Types.TINYINT  :
+	        case Types.SMALLINT :
+	        case Types.INTEGER  :
+	        	ps.setInt(keyColumn, resultSet.getInt(keyColumn));
+	            break;
+	        case Types.BIGINT :
+	        	ps.setLong(keyColumn, resultSet.getLong(keyColumn));
+	            break;
+	        case Types.REAL	:
+	        case Types.FLOAT:
+	        	ps.setFloat(keyColumn, resultSet.getFloat(keyColumn));
+	        	break;
+	        case Types.DOUBLE :
+	        	ps.setDouble(keyColumn, resultSet.getDouble(keyColumn));
+	            break;
+	        default :
+	            throw new SQLException("I don't recognize this type for column (" + this.columnNames[keyColumn] + ")");
+        }
 	}
 
 	/**
