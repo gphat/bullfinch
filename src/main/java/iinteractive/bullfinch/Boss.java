@@ -218,6 +218,8 @@ public class Boss {
 			// Give it it's very own kestrel connection.
 			MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
 			builder.setCommandFactory(new KestrelCommandFactory());
+			// We don't want compression so I'm setting this stupid high.
+			builder.getTranscoder().setCompressionThreshold(1073741824);
 			MemcachedClient client = builder.build();
 			client.setPrimitiveAsString(true);
 			client.setEnableHeartBeat(false);
