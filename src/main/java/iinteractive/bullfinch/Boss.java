@@ -1,7 +1,5 @@
 package iinteractive.bullfinch;
 
-import iinteractive.bullfinch.minion.PerformanceEmitter;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -34,8 +32,6 @@ public class Boss {
 	private PerformanceCollector collector;
 
 	private boolean collecting = false;
-	private Thread emitterThread;
-	private PerformanceEmitter emitter;
 	private ArrayList<URL> configURLs;
 	private ArrayList<Long> configTimestamps;
 
@@ -102,25 +98,6 @@ public class Boss {
 
 		InetAddress addr = InetAddress.getLocalHost();
 		this.collector = new PerformanceCollector(addr.getHostName(), this.collecting);
-
-//		if(this.collecting) {
-//			// Prepare the emitter thread
-//			if(this.collecting) {
-//				Client kestrel = new Client((String) perfConfig.get("kestrel_host"), ((Long) perfConfig.get("kestrel_port")).intValue());
-//				kestrel.connect();
-//				this.emitter = new PerformanceEmitter(this.collector, kestrel, (String) perfConfig.get("queue"));
-//				if(perfConfig.containsKey("timeout")) {
-//					this.emitter.setTimeout(((Long) perfConfig.get("timeout")).intValue());
-//				}
-//				if(perfConfig.containsKey("retry_time")) {
-//					this.emitter.setRetryTime(((Long) perfConfig.get("retry_time")).intValue());
-//				}
-//				if(perfConfig.containsKey("retry_attempts")) {
-//					this.emitter.setRetryAttempts(((Long) perfConfig.get("retry_attempts")).intValue());
-//				}
-//				this.emitterThread = new Thread(this.emitter);
-//			}
-//		}
 
 		JSONArray workerList = (JSONArray) config.get("workers");
 		if(workerList == null) {
@@ -230,10 +207,6 @@ public class Boss {
 			}
 		}
 
-		if(this.collecting) {
-			this.emitterThread.start();
-		}
-
 		Properties buildProps = new Properties();
 		try {
 			buildProps.load(Boss.class.getResource("build.properties").openStream());
@@ -263,9 +236,6 @@ public class Boss {
 				Minion worker = minions.next();
 				worker.cancel();
 			}
-			if(this.collecting) {
-				this.emitter.cancel();
-			}
 
 			// Now wait around for each thread to finish in turn.
 			logger.debug("Joining threads");
@@ -273,9 +243,6 @@ public class Boss {
 			while(threads.hasNext()) {
 				Thread thread = threads.next();
 				try { thread.join(); } catch(Exception e) { logger.error("Interrupted joining thread."); }
-			}
-			if(this.collecting) {
-				try { this.emitterThread.join(); } catch(Exception e) { logger.error("Interrupted joining emitter thread."); }
 			}
 		}
 	}
