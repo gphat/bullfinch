@@ -34,7 +34,7 @@
                         "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
                     },
                     "goodTable": {
-                        "sql": "SELECT CURTIME()",
+                        "sql": "SELECT value FROM foobar",
                     },
                     "getInt" : {
                         "sql"    : "SELECT an_int FROM PUBLIC.TEST_TABLE WHERE an_int=?",
@@ -56,17 +56,17 @@
             }
         },
         {
-            "name" : "Query Runner",
+            "name" : "Table Emptier",
             "worker_class" : "iinteractive.bullfinch.minion.JDBCTableEmptier",
             "worker_count" : 2,
             "options"  : {
                 "kestrel_host" : "127.0.0.1",
                 "kestrel_port" : 22133,
                 "publish_to" : "test-net-kestrel",
-                "interval": 1000,
-                "select_query": "SELECT * FROM test LIMIT 10",
-                "delete_query": "DELETE FROM test WHERE id=?",
-                "delete_key": "id",
+                "interval": 5000,
+                "select_query": "SELECT * FROM foobar ORDER BY value ASC LIMIT 10",
+                "delete_query": "DELETE FROM foobar WHERE value=?",
+                "delete_key": "value",
                 "connection" : {
                     "driver" : "com.mysql.jdbc.Driver",
                     "dsn" : "jdbc:mysql://localhost/test",
