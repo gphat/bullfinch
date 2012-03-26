@@ -6,7 +6,6 @@ import iinteractive.bullfinch.ProcessTimeoutException;
 import iinteractive.bullfinch.util.RequestWithResponseParser;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 
 import net.rubyeye.xmemcached.exception.MemcachedException;
@@ -126,16 +125,11 @@ public abstract class QueueMonitor extends KestrelBased {
 
 		logger.debug("Response will go to " + responseQueue);
 
+		long start = System.currentTimeMillis();
 		// Get a list of items back from the worker
-		@SuppressWarnings("unchecked")
-		Iterator<String> items = this.handle(collector, request);
+		this.handle(collector, responseQueue, request);
 
 		// Send those items back into the queue
-
-		long start = System.currentTimeMillis();
-		while(items.hasNext()) {
-			sendMessage(responseQueue, items.next());
-		}
 		collector.add(
 			"ResultSet iteration and queue insertion",
 			System.currentTimeMillis() - start,
@@ -151,8 +145,7 @@ public abstract class QueueMonitor extends KestrelBased {
 	 *
 	 * @param collector A PerformanceCollector instance
 	 * @param request The request!
-	 * @return An iterator of strings, suitable for returning to the caller.
 	 * @throws Exception
 	 */
-	public abstract Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws ProcessTimeoutException;
+	public abstract void handle(PerformanceCollector collector, String responseQueue, HashMap<String,Object> request) throws ProcessTimeoutException;
 }

@@ -3,8 +3,8 @@ package iinteractive.bullfinch.minion;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.Phrasebook;
 import iinteractive.bullfinch.Phrasebook.ParamType;
-import iinteractive.bullfinch.util.JSONResultSetWrapper;
 import iinteractive.bullfinch.ProcessTimeoutException;
+import iinteractive.bullfinch.util.JSONResultSetWrapper;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -159,16 +159,18 @@ public class JDBCQueryRunner extends QueueMonitor {
 	/**
 	 * Handle a request.
 	 *
+	 * @param collector Instance of PerformanceCollector
+	 * @param responseQueue queue name to send response to
 	 * @param request The request as a post-json-parsed-hashmap.
 	 * @return An iterator for sending the response back.
 	 */
-	public Iterator<String> handle(PerformanceCollector collector, HashMap<String,Object> request) throws ProcessTimeoutException {
-
-		ArrayList<String> list = new ArrayList<String>();
+	public void handle(PerformanceCollector collector, String responseQueue, HashMap<String,Object> request) throws ProcessTimeoutException {
 
 		String tracer = (String) request.get("tracer");
 
 		Connection conn = null;
+		ResultSet rs = null;
+		PreparedStatement ps = null;
 		try {
 			DateTime dtProcessBy;
 
@@ -195,7 +197,8 @@ public class JDBCQueryRunner extends QueueMonitor {
 			// Get the resultset back and transfer it's content into a list so
 			// that we can return an iterator AFTER closing the connection.
 			long start = System.currentTimeMillis();
-			ResultSet rs = bindAndExecuteQuery(conn, request);
+			ps = bindAndExecuteQuery(conn, request);
+			rs = ps.getResultSet();
 
 			if(rs != null) {
 				collector.add(
@@ -207,11 +210,13 @@ public class JDBCQueryRunner extends QueueMonitor {
 				JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
 					(String) request.get("tracer"), rs
 				);
+
 				while(wrapper.hasNext()) {
-					list.add(wrapper.next());
+					sendMessage(responseQueue, wrapper.next());
 				}
-            }
-            // Check the process timeout again
+			}
+
+			// Check the process timeout again
 			if (dtProcessBy.isBefore(DateTime.now()))
 				throw new ProcessTimeoutException("process-by time exceeded");
 
@@ -227,14 +232,20 @@ public class JDBCQueryRunner extends QueueMonitor {
 			if(tracer != null) {
 				obj.put("tracer", tracer);
 			}
-			list.add(obj.toString());
+			// We need to send back an error create a new list to get an
+			// iterator from.
+			sendMessage(responseQueue, obj.toString());
 		} finally {
+			if(rs != null) {
+				try { rs.close(); } catch(SQLException e) { logger.error("Failed to close resultset", e); }
+			}
+			if(ps != null) {
+				try { ps.close(); } catch(SQLException e) { logger.error("Failed to close statement", e); }
+			}
 			if(conn != null) {
 				try { conn.close(); } catch(SQLException e) { logger.error("Failed to close connection", e); }
 			}
 		}
-
-		return list.iterator();
 	}
 
 	private BasicDataSource connect() throws Exception {
@@ -262,7 +273,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 	/*
 	 * Find the query and execute it it.
 	 */
-	private ResultSet bindAndExecuteQuery(Connection conn, HashMap<String,Object> request) throws Exception {
+	private PreparedStatement bindAndExecuteQuery(Connection conn, HashMap<String,Object> request) throws Exception {
 
 		// Verify the requested statement exists
 		String name = (String) request.get("statement");
@@ -309,6 +320,6 @@ public class JDBCQueryRunner extends QueueMonitor {
 
 		prepStatement.execute();
 
-		return prepStatement.getResultSet();
+		return prepStatement;
 	}
 }
