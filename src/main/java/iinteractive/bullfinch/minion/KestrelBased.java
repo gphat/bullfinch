@@ -53,6 +53,7 @@ public abstract class KestrelBased extends Minion {
 		MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
 		builder.setCommandFactory(new KestrelCommandFactory());
 		builder.setFailureMode(true);
+		builder.getTranscoder().setCompressionThreshold(1073741824);
 		client = builder.build();
 		client.setEnableHeartBeat(false);
 		client.setPrimitiveAsString(true);
