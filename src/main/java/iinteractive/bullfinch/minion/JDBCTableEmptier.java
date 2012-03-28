@@ -153,7 +153,6 @@ public class JDBCTableEmptier extends KestrelBased {
 				ResultSet rs = null;
 				try {
 					conn = ds.getConnection();
-					conn.setAutoCommit(false);
 
 					// Get our queries ready
 					selectStatement = conn.prepareStatement(selectQuery);
@@ -163,19 +162,17 @@ public class JDBCTableEmptier extends KestrelBased {
 					rs = selectStatement.getResultSet();
 					JSONResultSetWrapper wrapper = new JSONResultSetWrapper("", deleteKey, rs); // XXX fix tracer
 					while(wrapper.hasNext()) {
-						sendMessage(publishTo, wrapper.next());
-						// Need to bind param here
+						// Do the bind first…
 						wrapper.bindKeyToQuery(deleteStatement);
-						logger.debug("Deleting sent row.");
+						// Now send and delete as quicly as possible to minimize
+						// any failures that could cause the row to be send and
+						// not deleted.
+						sendMessage(publishTo, wrapper.next());
+ 						logger.debug("Deleting sent row.");
 						deleteStatement.execute();
-						conn.commit();
 					}
 				} catch(SQLException e) {
 					logger.error("Error fetching/deleting rows.", e);
-					if(conn != null) {
-						logger.warn("Rolling back!");
-						conn.rollback();
-					}
 				} finally {
 					if(rs != null) {
 						rs.close();
@@ -188,7 +185,6 @@ public class JDBCTableEmptier extends KestrelBased {
 					}
 					if(conn != null) {
 						try {
-							conn.setAutoCommit(true);
 							conn.close();
 						} catch(SQLException e) {
 							logger.error("Failed to close connection", e);
