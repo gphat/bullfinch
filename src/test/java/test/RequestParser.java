@@ -14,6 +14,8 @@ public class RequestParser {
 			new RequestWithResponseParser("IM NOT VALID");
 
 			fail("Parser should throw exception on invalid JSON");
+		} catch (Error e) {
+			// weee!
 		} catch (Exception e) {
 			// Do nothing, this is expected
 		}

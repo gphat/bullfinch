@@ -30,6 +30,14 @@ public abstract class KestrelBased extends Minion {
 	protected String queueName;
 	protected MemcachedClient client;
 
+	public MemcachedClient getClient() {
+		return client;
+	}
+
+	public void setClient(MemcachedClient client) {
+		this.client = client;
+	}
+
 	public KestrelBased(PerformanceCollector collector) {
 
 		super(collector);
@@ -49,14 +57,17 @@ public abstract class KestrelBased extends Minion {
 		}
 		int workPort = workPortLng.intValue();
 
-		// Give it a kestrel connection.
-		MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
-		builder.setCommandFactory(new KestrelCommandFactory());
-		builder.setFailureMode(true);
-		builder.getTranscoder().setCompressionThreshold(1073741824);
-		client = builder.build();
-		client.setEnableHeartBeat(false);
-		client.setPrimitiveAsString(true);
+		// This is here to facilitate testing
+		if(this.client == null) {
+			// Give it a kestrel connection.
+			MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(workHost + ":" + workPort));
+			builder.setCommandFactory(new KestrelCommandFactory());
+			builder.setFailureMode(true);
+			builder.getTranscoder().setCompressionThreshold(1073741824);
+			client = builder.build();
+			client.setEnableHeartBeat(false);
+			client.setPrimitiveAsString(true);
+		}
 	}
 
 	/*
@@ -66,7 +77,7 @@ public abstract class KestrelBased extends Minion {
 	protected void sendMessage(String queue, String message) {
 
 		if(message == null) {
-			logger.warn("Ignoring empty response we were suppsoed to send to kestrel");
+			logger.warn("Ignoring empty response we were supposed to send to kestrel");
 			return;
 		}
 
@@ -83,7 +94,7 @@ public abstract class KestrelBased extends Minion {
 				logger.error("Interrupted", e);
 				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
 			} catch(TimeoutException e) {
-				logger.error("Timed out sending EOF to complete response", e);
+				logger.error("Timed out sending response to complete response", e);
 				try { Thread.sleep(2000); } catch (InterruptedException ie) { logger.warn("Interrupted sleep"); }
 			}
 			if(retries >= 20) {

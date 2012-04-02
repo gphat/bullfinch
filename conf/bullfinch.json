@@ -6,14 +6,14 @@
     "workers" : [
         {
             "name" : "JDBC Worker",
-            "kestrel_host" : "172.16.49.132",
-            "kestrel_port" : 22133,
             "worker_class" : "iinteractive.bullfinch.JDBCWorker",
             "worker_count" : 2,
-            "subscribe_to" : "test-net-kestrel",
-            "timeout" : 10000,
             "options"  : {
                 "default_process_by_ttl" : "PT300S",
+                "kestrel_host" : "172.16.49.132",
+                "kestrel_port" : 22133,
+                "subscribe_to" : "test-net-kestrel",
+                "timeout" : 10000,
                 "connection" : {
                     "driver" : "org.hsqldb.jdbcDriver",
                     "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",

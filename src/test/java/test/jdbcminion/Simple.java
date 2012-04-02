@@ -1,7 +1,6 @@
 package test.jdbcminion;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import iinteractive.bullfinch.PerformanceCollector;
@@ -13,7 +12,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.HashMap;
-import java.util.Iterator;
+
+import net.rubyeye.xmemcached.MemcachedClient;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -23,11 +23,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import test.util.FakeKestrel;
+
 public class Simple {
 
 	private Connection conn;
 	private JDBCQueryRunner worker;
 	private PerformanceCollector pc = new PerformanceCollector("test", false);
+	private String responseQueue = "responseQueue";
+	private MemcachedClient kestrelClient = new FakeKestrel();
 
 	@Before
 	public void createDatabase() {
@@ -67,6 +71,7 @@ public class Simple {
     		@SuppressWarnings("unchecked")
     		HashMap<String,Object> workerConfig = (HashMap<String,Object>) workConfig.get("options");
 
+    		worker.setClient(this.kestrelClient);
 			worker.configure(workerConfig);
 
 			this.worker = worker;
@@ -83,15 +88,15 @@ public class Simple {
 	 */
 	public void testMissingParams() {
 
-		JDBCQueryRunner worker = this.worker;
-
 		try {
 			HashMap<String,Object> request = new HashMap<String,Object>();
 			request.put("statement", "getInt");
 
-			Iterator<String> iter = worker.handle(pc, request);
+			worker.handle(pc, responseQueue, request);
 
-			assertEquals("Got error for missing params", "{\"ERROR\":\"Statement getInt requires params\"}", iter.next());
+			String member = this.kestrelClient.get(responseQueue);
+
+			assertEquals("Got error for missing params", "{\"ERROR\":\"Statement getInt requires params\"}", member);
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -105,14 +110,13 @@ public class Simple {
 	 */
 	public void testInt() {
 
-		JDBCQueryRunner worker = this.worker;
-
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getInt\",\"params\":[12]}");
 
-			Iterator<String> iter = worker.handle(pc, request);
-			assertEquals("getInt result", "{\"row_data\":{\"AN_INT\":12},\"row_num\":1}", iter.next());
-			assertFalse("no more rows", iter.hasNext());
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("getInt result", "{\"row_data\":{\"AN_INT\":12},\"row_num\":1}", member);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -126,14 +130,13 @@ public class Simple {
 	 */
 	public void testFloat() {
 
-		JDBCQueryRunner worker = this.worker;
-
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getFloat\",\"params\":[3.14]}");
 
-			Iterator<String> iter = worker.handle(pc, request);
-			assertEquals("getFloat result", "{\"row_data\":{\"A_FLOAT\":3.14},\"row_num\":1}", iter.next());
-			assertFalse("no more rows", iter.hasNext());
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("getFloat result", "{\"row_data\":{\"A_FLOAT\":3.14},\"row_num\":1}", member);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -147,14 +150,13 @@ public class Simple {
 	 */
 	public void testBool() {
 
-		JDBCQueryRunner worker = this.worker;
-
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getBool\",\"params\":[true]}");
 
-			Iterator<String> iter = worker.handle(pc, request);
-			assertEquals("getBool result", "{\"row_data\":{\"A_BOOL\":true},\"row_num\":1}", iter.next());
-			assertFalse("no more rows", iter.hasNext());
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("getBool result", "{\"row_data\":{\"A_BOOL\":true},\"row_num\":1}", member);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -168,15 +170,15 @@ public class Simple {
 	 */
 	public void testString() {
 
-		JDBCQueryRunner worker = this.worker;
-
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getString\",\"params\":[\"cory\"]}");
 
-			Iterator<String> iter = worker.handle(pc, request);
-			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":1}", iter.next());
-			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":2}", iter.next());
-			assertFalse("no more rows", iter.hasNext());
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":1}", member);
+			String member2 = this.kestrelClient.get(responseQueue);
+			assertEquals("getString result", "{\"row_data\":{\"A_STRING\":\"cory\"},\"row_num\":2}", member2);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
 
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -187,20 +189,21 @@ public class Simple {
 	@Test
 	public void testBadTable() {
 
-		JDBCQueryRunner worker = this.worker;
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"badTable\"}");
-			Iterator<String> iter = worker.handle(pc, request);
-			assertEquals("error", "{\"ERROR\":\"Borrow prepareStatement from pool failed\"}", iter.next());
-			assertFalse("no more rows", iter.hasNext());
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("error", "{\"ERROR\":\"Borrow prepareStatement from pool failed\"}", member);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
 
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"goodTable\"}");
-			Iterator<String> iter = worker.handle(pc, request);
-			assertTrue("follow up query", iter.next().startsWith("{\"row_data\":"));
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertTrue("follow up query", member.startsWith("{\"row_data\":"));
 		} catch(Exception e) {
 			fail(e.getMessage());
 		}
@@ -208,11 +211,12 @@ public class Simple {
 
 	@Test
 	public void testInsert() {
-		JDBCQueryRunner worker = this.worker;
+
 		try {
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"addOne\"}");
-			Iterator<String> iter = worker.handle(pc,  request);
-			assertTrue("EOF only", !iter.hasNext());
+			worker.handle(pc,  responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertTrue("EOF only", member == null);
 		} catch (Exception e) {
 			fail(e.getMessage());
 		}
