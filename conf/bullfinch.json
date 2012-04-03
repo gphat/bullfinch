@@ -48,6 +48,26 @@
                     }
                 }
             }
+        },
+        {
+            "name" : "Table Scanner",
+            "worker_class" : "iinteractive.bullfinch.minion.JDBCTableScanner",
+            "worker_count" : 2,
+            "options"  : {
+                "kestrel_host" : "127.0.0.1",
+                "kestrel_port" : 22133,
+                "publish_to" : "test-table-scanner",
+                "interval": 5000,
+                "select_query": "SELECT * FROM PUBLIC.TEST_TABLE WHERE scanned=0 ORDER BY a_float LIMIT 1",
+                "mark_query": "UPDATE PUBLIC.TEST_TABLE SET scanned=1 WHERE an_int=?",
+                "mark_key": "an_int",
+                "connection" : {
+                    "driver" : "org.hsqldb.jdbcDriver",
+                    "dsn" : "jdbc:hsqldb:file:tmp/tmp;shutdown=true",
+                    "uid" : "SA",
+                    "validation" : "SELECT current_timestamp FROM public.TEST_TABLE"
+                }
+             }
         }
     ]
 }

@@ -47,7 +47,7 @@ public class FakeKestrel implements MemcachedClient {
 			logger.debug("Queue exists");
 			queue = queues.get(queueName);
 		} else {
-			logger.debug("Adding item to queue: " + obj);
+			logger.debug("Adding item to queue '" + queueName + "': " + obj);
 			queue = new LinkedList<Object>();
 			queues.put(queueName, queue);
 		}

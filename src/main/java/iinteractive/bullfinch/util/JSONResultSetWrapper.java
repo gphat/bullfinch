@@ -48,7 +48,8 @@ public class JSONResultSetWrapper implements Iterator<String> {
 			this.columnTypes = new int[this.columnCount];
 			for (int i = 0; i < this.columnCount; i++) {
 				String name = metadata.getColumnName(i + 1);
-				if((keyCol != null) && (keyCol.equals(name))) {
+				if((keyCol != null) && (keyCol.equalsIgnoreCase(name))) {
+					logger.debug("Found key at " + keyCol);
 					keyColumn = i + 1;
 				}
 				columnNames[i] = name;

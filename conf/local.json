@@ -56,8 +56,8 @@
             }
         },
         {
-            "name" : "Table Emptier",
-            "worker_class" : "iinteractive.bullfinch.minion.JDBCTableEmptier",
+            "name" : "Table Scanner",
+            "worker_class" : "iinteractive.bullfinch.minion.JDBCTableScanner",
             "worker_count" : 2,
             "options"  : {
                 "kestrel_host" : "127.0.0.1",
@@ -65,8 +65,8 @@
                 "publish_to" : "test-net-kestrel",
                 "interval": 5000,
                 "select_query": "SELECT * FROM foobar ORDER BY value ASC LIMIT 10",
-                "delete_query": "DELETE FROM foobar WHERE value=?",
-                "delete_key": "value",
+                "mark_query": "DELETE FROM foobar WHERE value=?",
+                "mark_key": "value",
                 "connection" : {
                     "driver" : "com.mysql.jdbc.Driver",
                     "dsn" : "jdbc:mysql://localhost/test",

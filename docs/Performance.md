@@ -10,17 +10,18 @@ the full lifecycle.
     "performance": {
         // Enable performance monitoring
     	"collect": true,
-    	// The kestrel host we'll be publishing to
-        "kestrel_host" : "172.16.49.130",
-        // The kestrel port
-        "kestrel_port" : 2222,
-        // The queue we'll add to
-    	"queue": "metrics",
-    	// optional: timeout, how often to send in seconds, defaults to 60
-    	"timeout": "60",
     },
     "workers" : [
-        …
+        {
+            "name" : "Performance Emitter",
+            "worker_class" : "iinteractive.bullfinch.minion.PerformanceEmitter",
+            "worker_count" : 1,
+            "options": {
+                "kestrel_host": "127.0.0.1",
+                "kestrel_port" : 22133,
+                "queue": "metrics",
+            }
+        }
     ]
 }
 
@@ -75,11 +76,23 @@ file:
 
 	"performance": {
 		"collect": true,
-        "kestrel_host" : "172.16.49.130", // the host to connect to
-        "kestrel_port" : 2222, // the port
-		"queue": "metrics", // the queue to put stuff in
-		"timeout": 30, // time to sleep between sends of data
 	},
+
+To publish this information you must also enable the worker:
+
+    "workers" : [
+        {
+            "name" : "Performance Emitter",
+            "worker_class" : "iinteractive.bullfinch.minion.PerformanceEmitter",
+            "worker_count" : 1,
+            "options": {
+                "kestrel_host": "127.0.0.1",
+                "kestrel_port" : 22133,
+                "queue": "metrics",
+                "timeout": 60
+            }
+        }
+    ]
 
 If enabled then Bullfinch will collect information about operations and send
 them to the specified queue every $timeout seconds.  The data emitted is JSON

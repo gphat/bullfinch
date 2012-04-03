@@ -1,25 +1,25 @@
-# JDBC Worker #
+# JDBC Query Runner #
 
-The JDBC worker's configuration looks like this:
+The JDBC Query Runner's configuration looks like this:
 
     {
         "workers" : [
             {
                 "name" : "JDBC Worker",
-                // The kestrel host we'll be connecting to
-                "kestrel_host" : "127.0.0.1",
-                // The kestrel port
-                "kestrel_port" : 2222,
                 // The class were loading, the JDBC Worker
-                "worker_class" : "iinteractive.bullfinch.JDBCWorker",
+                "worker_class" : "iinteractive.bullfinch.minion.JDBCQueryRunner",
                 // The number of JDBC Worker treads to start
                 "worker_count" : 2,
-                // The queue the workers will monitor
-                "subscribe_to" : "test-net-kestrel",
-                // The time the workers will spend watching the queue before
-                // timing out (then starting to watch again)
-                "timeout" : 10000,
                 "options"  : {
+                    // The kestrel host we'll be connecting to
+                    "kestrel_host" : "127.0.0.1",
+                    // The kestrel port
+                    "kestrel_port" : 2222,
+                    // The queue the workers will monitor
+                    "subscribe_to" : "test-net-kestrel",
+                    // The time the workers will spend watching the queue before
+                    // timing out (then starting to watch again)
+                    "timeout" : 10000,
                     // Requests older than this will be ignored
                     "default_process_by_ttl" : "PT300S",
                     // JDBC connection information
@@ -55,7 +55,7 @@ may have parameters.  Note that you must use placeholders for them!
 
 # HOW IT WORKS
 
-The JDBC worker waits for messages to enter the queue it is watching.  It
+The JDBC Query Runner waits for messages to enter the queue it is watching.  It
 expects the message to look like this:
 
     {
