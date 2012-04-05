@@ -11,7 +11,6 @@ import java.util.concurrent.TimeoutException;
 import net.rubyeye.xmemcached.exception.MemcachedException;
 
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +34,6 @@ public abstract class QueueMonitor extends KestrelBased {
 	static Logger logger = LoggerFactory.getLogger(QueueMonitor.class);
 	private String queueName;
 	private int timeout;
-    private JSONParser parser = new JSONParser();
 
 	public QueueMonitor(PerformanceCollector collector) {
 
