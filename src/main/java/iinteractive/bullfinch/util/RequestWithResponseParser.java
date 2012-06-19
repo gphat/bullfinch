@@ -21,9 +21,6 @@ public class RequestWithResponseParser {
 
 		// Try and get the response queue.
 		responseQueue = (String) json.get("response_queue");
-		if(responseQueue == null) {
-			throw new Exception("JSON request requires response_queue key");
-		}
 	}
 
 	/**
