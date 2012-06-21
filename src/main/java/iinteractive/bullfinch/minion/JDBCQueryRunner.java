@@ -3,6 +3,7 @@ package iinteractive.bullfinch.minion;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.Phrasebook;
 import iinteractive.bullfinch.Phrasebook.ParamType;
+import iinteractive.bullfinch.PrequelPhrase;
 import iinteractive.bullfinch.ProcessTimeoutException;
 import iinteractive.bullfinch.util.JSONResultSetWrapper;
 
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TreeSet;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.joda.time.DateTime;
@@ -39,6 +41,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 	private String validationQuery;
 	private Duration durTTLProcessByDefault;
 
+	private HashMap<String, Boolean> executedWorkerPrequels;
 	private Phrasebook statementBook;
 
 	private BasicDataSource ds;
@@ -47,6 +50,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 
 		super(collector);
 		this.statementBook = new Phrasebook();
+		this.executedWorkerPrequels = new HashMap<String, Boolean>();
 	}
 
 	/**
@@ -56,14 +60,14 @@ public class JDBCQueryRunner extends QueueMonitor {
 	 * parameters:
 	 *
 	 * "statements" : {
-     * 		"getAllAddresses" : {
-     *          "sql"    : "SELECT * FROM address",
-     *       },
-     *       "getAllActiveECodesByPage" : {
-     *           "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
-     *           "params" : [ "INTEGER", "INTEGER" ]
-     *       }
-     *   }
+	 * 		"getAllAddresses" : {
+	 *          "sql"    : "SELECT * FROM address",
+	 *       },
+	 *       "getAllActiveECodesByPage" : {
+	 *           "sql"    : "select * from EMT_RENTAL_PRODUCT_V where ISACTIVE = 'N' and ROWNUM >= ? and ROWNUM <= ?",
+	 *           "params" : [ "INTEGER", "INTEGER" ]
+	 *       }
+	 *   }
 	 *
 	 * @param config
 	 * @throws Exception
@@ -152,6 +156,27 @@ public class JDBCQueryRunner extends QueueMonitor {
 				} else {
 					this.statementBook.addPhrase(key, stmt);
 				}
+
+				if(stmtInfo.containsKey("wrap_in_transaction")) {
+					this.statementBook.WrapInTransaction(key);
+				}		 
+
+				if(stmtInfo.containsKey("prequels")) {
+					HashMap<String,HashMap<String,String>> prequels = (HashMap<String,HashMap<String,String>>)stmtInfo.get("prequels");
+					Iterator<String> prequel_keys = prequels.keySet().iterator();
+					while (prequel_keys.hasNext() ) {
+						String prequel_key=prequel_keys.next();
+						HashMap prequel_details = prequels.get(prequel_key);
+
+						String prequel_scope=(String)prequel_details.get("scope");
+						ArrayList prequel_params=(ArrayList)prequel_details.get("params");
+						Integer prequel_order=(Integer)prequel_details.get("order");
+
+						PrequelPhrase pp = new PrequelPhrase();
+						pp.setPrequelPhrase(prequel_key,prequel_order,prequel_scope,prequel_params);
+						this.statementBook.addPrequel(key,pp);
+					}
+				}
 			}
 		}
 	}
@@ -189,10 +214,10 @@ public class JDBCQueryRunner extends QueueMonitor {
 			long connStart = System.currentTimeMillis();
 			conn = this.ds.getConnection();
 			collector.add(
-				"Connection retrieval",
-				System.currentTimeMillis() - connStart,
-				tracer
-			);
+					"Connection retrieval",
+					System.currentTimeMillis() - connStart,
+					tracer
+					);
 
 			// Get the resultset back and transfer it's content into a list so
 			// that we can return an iterator AFTER closing the connection.
@@ -202,14 +227,14 @@ public class JDBCQueryRunner extends QueueMonitor {
 
 			if(rs != null) {
 				collector.add(
-					"Query preparation and execution",
-					System.currentTimeMillis() - start,
-					tracer
-				);
+						"Query preparation and execution",
+						System.currentTimeMillis() - start,
+						tracer
+						);
 
 				JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
-					(String) request.get("tracer"), rs
-				);
+						(String) request.get("tracer"), rs
+						);
 
 				while(wrapper.hasNext()) {
 					sendMessage(responseQueue, wrapper.next());
@@ -282,10 +307,47 @@ public class JDBCQueryRunner extends QueueMonitor {
 			throw new Exception("Unknown statement " + name);
 		}
 
-		PreparedStatement prepStatement = conn.prepareStatement(statement);
-
 		@SuppressWarnings("unchecked")
 		ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
+		HashMap<String,PrequelPhrase> prequels = this.statementBook.getPrequels(name);
+		Boolean wrapInTransaction = this.statementBook.getWrapInTransaction(name);
+		HashMap<Integer,PrequelPhrase> WorkerPrequels   = new HashMap();
+		HashMap<Integer,PrequelPhrase> StatementPrequels = new HashMap();
+		Iterator<PrequelPhrase> pps = prequels.values().iterator();
+		while (pps.hasNext()) {
+			PrequelPhrase prequel = pps.next();
+			String prequel_name = prequel.getName();
+			String prequel_scope = prequel.getScope();
+			Integer prequel_order = prequel.getOrder();
+			if ("worker".equals(prequel_scope)) {
+				WorkerPrequels.put(prequel_order, prequel);
+			} else if ("statement".equals(prequel_scope)) {
+				StatementPrequels.put(prequel_order, prequel);
+			} else {
+				logger.error("Unknown scope:" + prequel_scope + "for prequel statment:" + prequel_name + " on statment:" + name);
+				continue;
+			}
+		}
+
+		TreeSet<Integer> workerKeys = new TreeSet<Integer>(WorkerPrequels.keySet());
+		for (Integer i : workerKeys) {
+			PrequelPhrase prequel = WorkerPrequels.get(i);
+			if (this.executedWorkerPrequels.containsKey(prequel.getName())) {
+				continue;
+			}
+			HashMap<String, Object> prequel_request = prequel.generateRequest(rparams);
+			PreparedStatement done = bindAndExecuteQuery(conn, prequel_request);
+			this.executedWorkerPrequels.put(prequel.getName(), true);
+		}
+
+		TreeSet<Integer> statementKeys = new TreeSet<Integer>(StatementPrequels.keySet());
+		for (Integer i : statementKeys) {
+			PrequelPhrase prequel = StatementPrequels.get(i);
+			HashMap<String, Object> prequel_request = prequel.generateRequest(rparams);
+			PreparedStatement done = bindAndExecuteQuery(conn, prequel_request);
+		}
+
+		PreparedStatement prepStatement = conn.prepareStatement(statement);
 		List<ParamType> reqParams = this.statementBook.getParams(name);
 		if(reqParams != null) {
 
@@ -298,23 +360,23 @@ public class JDBCQueryRunner extends QueueMonitor {
 			}
 
 			for(int i = 0; i < reqParams.size(); i++) {
-                ParamType paramType = reqParams.get(i);
-                switch ( paramType ) {
-	                case BOOLEAN :
-	                    prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());
-	                    break;
-	                case NUMBER :
-	                	prepStatement.setDouble(i + 1, ((Number) rparams.get(i)).doubleValue());
-	                	break;
-	                case INTEGER :
-                        prepStatement.setInt(i + 1, ((Long) rparams.get(i)).intValue() );
-                        break;
-                    case STRING :
-                        prepStatement.setString(i + 1, (String) rparams.get(i));
-                        break;
-                    default :
-                        throw new Exception ("Don't understand param-type '" + paramType + "'");
-                }
+		 ParamType paramType = reqParams.get(i);
+		 switch ( paramType ) {
+		 case BOOLEAN :
+		 	 prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());
+			 break;
+		 case NUMBER :
+			 prepStatement.setDouble(i + 1, ((Number) rparams.get(i)).doubleValue());
+			 break;
+		 case INTEGER :
+			 prepStatement.setInt(i + 1, ((Long) rparams.get(i)).intValue() );
+			 break;
+		 case STRING :
+			 prepStatement.setString(i + 1, (String) rparams.get(i));
+			 break;
+		 default :
+			 throw new Exception ("Don't understand param-type '" + paramType + "'");
+		 }
 			}
 		}
 

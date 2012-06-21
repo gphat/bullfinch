@@ -134,7 +134,9 @@ public abstract class QueueMonitor extends KestrelBased {
 			(String) request.get("tracer")
 		);
 		// Top if off with an EOF.
-		sendMessage(responseQueue, "{ \"EOF\":\"EOF\" }");
+		if ( responseQueue != null) {
+		  sendMessage(responseQueue, "{ \"EOF\":\"EOF\" }");
+		}
 	}
 
 	/**
