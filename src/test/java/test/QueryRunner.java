@@ -37,7 +37,7 @@ public class QueryRunner {
 	public void createDatabase() {
 
 		try {
-			Connection conn = DriverManager.getConnection("jdbc:hsqldb:file:tmp/tmp;shutdown=true", "SA", "");
+			Connection conn = DriverManager.getConnection("jdbc:hsqldb:mem:tmp/tmp;shutdown=true", "SA", "");
 
 			Statement stMakeTable = conn.createStatement();
 			stMakeTable.execute("CREATE TABLE PUBLIC.TEST_TABLE (an_int INTEGER, a_float FLOAT, a_bool BOOLEAN, a_string VARCHAR(32))");
