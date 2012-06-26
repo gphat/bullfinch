@@ -40,7 +40,6 @@ public class JDBCQueryRunner extends QueueMonitor {
 	private String validationQuery;
 	private Duration durTTLProcessByDefault;
 
-	private HashMap<String, Boolean> executedWorkerPrequels;
 	private Phrasebook statementBook;
 
 	private BasicDataSource ds;
@@ -49,7 +48,6 @@ public class JDBCQueryRunner extends QueueMonitor {
 
 		super(collector);
 		this.statementBook = new Phrasebook();
-		this.executedWorkerPrequels = new HashMap<String, Boolean>();
 	}
 
 	/**
