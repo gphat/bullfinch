@@ -22,7 +22,7 @@
                 },
                 "statements" : {
                     "badTable": {
-                        "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
+                        "sql": "SELECT current_timestamp FROM public.TESTBLAHBLAH_TABLE",
                     },
                     "goodTable": {
                         "sql": "SELECT an_int FROM PUBLIC.TEST_TABLE",

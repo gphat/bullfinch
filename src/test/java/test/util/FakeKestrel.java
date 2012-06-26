@@ -39,7 +39,7 @@ public class FakeKestrel implements MemcachedClient {
 
 		queues = new HashMap<String,LinkedList<Object>>();
 	}
-
+	
 	private boolean doAdd(String queueName, Object obj) {
 
 		LinkedList<Object> queue;
@@ -351,8 +351,7 @@ public class FakeKestrel implements MemcachedClient {
 	@Override
 	public void flushAll() throws TimeoutException, InterruptedException,
 			MemcachedException {
-		// TODO Auto-generated method stub
-
+		queues.clear();
 	}
 
 	@Override

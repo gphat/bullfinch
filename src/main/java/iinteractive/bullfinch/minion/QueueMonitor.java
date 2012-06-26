@@ -120,7 +120,7 @@ public abstract class QueueMonitor extends KestrelBased {
 			logger.warn("unable to parse input, ignoring");
 			return;
 		}
-
+	
 		logger.debug("Response will go to " + responseQueue);
 
 		long start = System.currentTimeMillis();
@@ -134,7 +134,7 @@ public abstract class QueueMonitor extends KestrelBased {
 			(String) request.get("tracer")
 		);
 		// Top if off with an EOF.
-		if ( responseQueue != null) {
+		if (responseQueue != null) {
 		  sendMessage(responseQueue, "{ \"EOF\":\"EOF\" }");
 		}
 	}

@@ -172,8 +172,6 @@ public class JDBCQueryRunner extends QueueMonitor {
 		String tracer = (String) request.get("tracer");
 
 		Connection conn = null;
-		ResultSet rs = null;
-		PreparedStatement ps = null;
 		try {
 			DateTime dtProcessBy;
 
@@ -220,9 +218,6 @@ public class JDBCQueryRunner extends QueueMonitor {
 				}
 			}
 			
-			// At this point we know that we have at least one statement in the
-			// list and that rparams 
-			
 			// Validate that all of the incoming statements are in the
 			// Phrasebook and have the appropriate number of parameters.
 			for(int i = 0; i < statements.size(); i++) {
@@ -235,6 +230,10 @@ public class JDBCQueryRunner extends QueueMonitor {
 				}
 				List<ParamType> reqParams = statementBook.getParams(s);
 				if(reqParams != null) {
+
+					if(rparams == null) {
+						throw new Exception("Statement " + s + " requires params");
+					}
 					// Grab the params we got in the request for the statement
 					// at this index.
 					Object sparam = rparams.get(i); // Let index exception handle things that don't exist
@@ -269,10 +268,10 @@ public class JDBCQueryRunner extends QueueMonitor {
 			long connStart = System.currentTimeMillis();
 			conn = this.ds.getConnection();
 			collector.add(
-					"Connection retrieval",
-					System.currentTimeMillis() - connStart,
-					tracer
-					);
+				"Connection retrieval",
+				System.currentTimeMillis() - connStart,
+				tracer
+			);
 		
 			// Get the resultset back and transfer it's content into a list so
 			// that we can return an iterator AFTER closing the connection.
@@ -280,26 +279,42 @@ public class JDBCQueryRunner extends QueueMonitor {
 				long start = System.currentTimeMillis();
 				String s = statements.get(i);
 				
-				ArrayList<Object> sparams = null;
+				PreparedStatement ps = null;
+				ResultSet rs = null;
+				
+				ArrayList<Object> sparams = params.get(i);
 				String sql = statementBook.getPhrase(s);
-				ps = bindAndExecuteQuery(conn, s, sql, sparams);
-				rs = ps.getResultSet();
+				
+				// Execute each statement in it's own try to protect it's
+				// ps and rs, guaranteeing they are closed.
+				try {
+					ps = bindAndExecuteQuery(conn, s, sql, sparams);
+					rs = ps.getResultSet();
 
-				if(rs != null) {
-					collector.add(
-						"Query preparation and execution",
-						System.currentTimeMillis() - start,
-						tracer
-					);
+					if(rs != null) {
+						collector.add(
+							"Query preparation and execution",
+							System.currentTimeMillis() - start,
+							tracer
+						);
 
-					JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
-						(String) request.get("tracer"), rs
-					);
+						JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
+							(String) request.get("tracer"), rs
+						);
 
-					while(wrapper.hasNext()) {
-						sendMessage(responseQueue, wrapper.next());
+						while(wrapper.hasNext()) {
+							sendMessage(responseQueue, wrapper.next());
+						}
+					}
+				} finally {
+					if(ps != null) {
+						try { ps.close(); } catch(SQLException e) { logger.error("Failed to close statement", e); }
+					}
+					if(rs != null) {
+						try { rs.close(); } catch(SQLException e) { logger.error("Failed to close resultset", e); }
 					}
 				}
+				
 			}
 
 			// Check the process timeout again
@@ -322,12 +337,6 @@ public class JDBCQueryRunner extends QueueMonitor {
 			// iterator from.
 			sendMessage(responseQueue, obj.toString());
 		} finally {
-			if(rs != null) {
-				try { rs.close(); } catch(SQLException e) { logger.error("Failed to close resultset", e); }
-			}
-			if(ps != null) {
-				try { ps.close(); } catch(SQLException e) { logger.error("Failed to close statement", e); }
-			}
 			if(conn != null) {
 				try { conn.close(); } catch(SQLException e) { logger.error("Failed to close connection", e); }
 			}

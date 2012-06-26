@@ -89,9 +89,10 @@ public class QueryRunner {
 	public void testMissingParams() {
 
 		try {
+			kestrelClient.flushAll();
 			HashMap<String,Object> request = new HashMap<String,Object>();
 			request.put("statement", "getInt");
-
+			
 			worker.handle(pc, responseQueue, request);
 
 			String member = this.kestrelClient.get(responseQueue);
@@ -111,6 +112,7 @@ public class QueryRunner {
 	public void testInt() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getInt\",\"params\":[12]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -131,6 +133,7 @@ public class QueryRunner {
 	public void testFloat() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getFloat\",\"params\":[3.14]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -151,6 +154,7 @@ public class QueryRunner {
 	public void testBool() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getBool\",\"params\":[true]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -171,7 +175,8 @@ public class QueryRunner {
 	public void testMultiple() {
 
 		try {
-			JSONObject request = (JSONObject) JSONValue.parse("{\"statements\":[\"getBool\",\"getFloat\"],\"params\":[[true],[3.14]}");
+			kestrelClient.flushAll();
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statements\":[\"getBool\",\"getFloat\"],\"params\":[[true],[3.14]]}");
 
 			worker.handle(pc, responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);
@@ -193,6 +198,7 @@ public class QueryRunner {
 	public void testString() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getString\",\"params\":[\"cory\"]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -212,6 +218,7 @@ public class QueryRunner {
 	public void testBadTable() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"badTable\"}");
 			worker.handle(pc, responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);
@@ -222,6 +229,7 @@ public class QueryRunner {
 		}
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"goodTable\"}");
 			worker.handle(pc, responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);
@@ -233,8 +241,9 @@ public class QueryRunner {
 
 	@Test
 	public void testInsert() {
-
+		
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"addOne\"}");
 			worker.handle(pc,  responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);
