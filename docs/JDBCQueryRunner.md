@@ -90,6 +90,19 @@ Note the use of the keys **statements** rather than **statement**.  Also note
 that every statement **must** have a parameter list.  If the statement has
 no parameters then it should be empty.
 
+# TRANSACTIONS
+
+Transactions only make sense for multiple-statements.  If you'd like to wrap
+the call in a transaction do this:
+
+{
+    "use_transaction" : true,
+    "statements" : [ "statementName", "otherStatement" ]
+    "params" : [ [ 12, "foo" ], [] ],
+    "response_queue" : "response-blah-blah",
+    "process-by" : "ISO8601 Date" // Optional, so old things can be ignored
+}
+
 ## TYPES
 
 The JDBC worker only understands certain types because it's using JSON.  You can use the
