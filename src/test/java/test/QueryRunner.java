@@ -176,13 +176,17 @@ public class QueryRunner {
 
 		try {
 			kestrelClient.flushAll();
-			JSONObject request = (JSONObject) JSONValue.parse("{\"statements\":[\"getBool\",\"getFloat\"],\"params\":[[true],[3.14]]}");
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statements\":[\"getBool\",\"getFloat\",\"goodTable\"],\"params\":[[true],[3.14],[]]}");
 
 			worker.handle(pc, responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);
 			assertEquals("getBool result", "{\"row_data\":{\"A_BOOL\":true},\"row_num\":1}", member);
 			String member2 = kestrelClient.get(responseQueue);
 			assertEquals("getFloat result", "{\"row_data\":{\"A_FLOAT\":3.14},\"row_num\":1}", member2);
+			String member3 = kestrelClient.get(responseQueue);
+			assertEquals("goodTable result", "{\"row_data\":{\"AN_INT\":12},\"row_num\":1}", member3);
+			String member4 = kestrelClient.get(responseQueue);
+			assertEquals("goodTable result", "{\"row_data\":{\"AN_INT\":13},\"row_num\":2}", member4);
 			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
 
 		} catch(Exception e) {
@@ -190,7 +194,7 @@ public class QueryRunner {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	/**
 	 * Test the multiple statements in a transaction.
