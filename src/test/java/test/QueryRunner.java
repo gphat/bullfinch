@@ -193,6 +193,29 @@ public class QueryRunner {
 	
 	@Test
 	/**
+	 * Test the multiple statements in a transaction.
+	 */
+	public void testMultipleTransaction() {
+
+		try {
+			kestrelClient.flushAll();
+			JSONObject request = (JSONObject) JSONValue.parse("{\"use_transaction\":true,\"statements\":[\"getBool\",\"getFloat\"],\"params\":[[true],[3.14]]}");
+
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("getBool result", "{\"row_data\":{\"A_BOOL\":true},\"row_num\":1}", member);
+			String member2 = kestrelClient.get(responseQueue);
+			assertEquals("getFloat result", "{\"row_data\":{\"A_FLOAT\":3.14},\"row_num\":1}", member2);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
+
+		} catch(Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	/**
 	 * Test the getString statement
 	 */
 	public void testString() {

@@ -170,6 +170,22 @@ public class JDBCQueryRunner extends QueueMonitor {
 	public void handle(PerformanceCollector collector, String responseQueue, HashMap<String,Object> request) throws ProcessTimeoutException {
 
 		String tracer = (String) request.get("tracer");
+		
+		Object protoTrans = request.get("use_transaction");
+		boolean useTransaction = false;
+		if(protoTrans instanceof Boolean) {
+			useTransaction = (Boolean) protoTrans;
+		}
+		if(protoTrans instanceof Integer) {
+			if(((Integer) protoTrans) > 0) {
+				useTransaction = true;
+			}
+		}
+		if(protoTrans instanceof String) {
+			if(((String) protoTrans).equalsIgnoreCase("true")) {
+				useTransaction = true;
+			}
+		}
 
 		Connection conn = null;
 		try {
@@ -272,9 +288,13 @@ public class JDBCQueryRunner extends QueueMonitor {
 				System.currentTimeMillis() - connStart,
 				tracer
 			);
-		
-			// Get the resultset back and transfer it's content into a list so
-			// that we can return an iterator AFTER closing the connection.
+			if(useTransaction) {
+				// We are to use a transaction, set auto-commit to false.
+				conn.setAutoCommit(false);
+			}
+			
+			// Execute each statement in turn, sending it's results back as
+			// we get them.
 			for(int i = 0; i < statements.size(); i++) {
 				long start = System.currentTimeMillis();
 				String s = statements.get(i);
@@ -321,6 +341,12 @@ public class JDBCQueryRunner extends QueueMonitor {
 			if (dtProcessBy.isBefore(DateTime.now()))
 				throw new ProcessTimeoutException("process-by time exceeded");
 
+			if(useTransaction) {
+				// Commit our transaction
+				logger.debug("Committing work.");
+				conn.commit(); 
+			}
+			
 		} catch(ProcessTimeoutException e) {
 			logger.error(e.getMessage());
 			throw new ProcessTimeoutException(e.getMessage());
@@ -338,6 +364,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 			sendMessage(responseQueue, obj.toString());
 		} finally {
 			if(conn != null) {
+				try { conn.setAutoCommit(true); } catch(SQLException e) { logger.error("Failed to set auto-commit back to true"); }
 				try { conn.close(); } catch(SQLException e) { logger.error("Failed to close connection", e); }
 			}
 		}
