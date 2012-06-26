@@ -95,13 +95,13 @@ no parameters then it should be empty.
 Transactions only make sense for multiple-statements.  If you'd like to wrap
 the call in a transaction do this:
 
-{
-    "use_transaction" : true,
-    "statements" : [ "statementName", "otherStatement" ]
-    "params" : [ [ 12, "foo" ], [] ],
-    "response_queue" : "response-blah-blah",
-    "process-by" : "ISO8601 Date" // Optional, so old things can be ignored
-}
+    {
+        "use_transaction" : true,
+        "statements" : [ "statementName", "otherStatement" ]
+        "params" : [ [ 12, "foo" ], [] ],
+        "response_queue" : "response-blah-blah",
+        "process-by" : "ISO8601 Date" // Optional, so old things can be ignored
+    }
 
 ## TYPES
 
