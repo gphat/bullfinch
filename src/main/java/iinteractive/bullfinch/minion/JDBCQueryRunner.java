@@ -247,7 +247,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 				List<ParamType> reqParams = statementBook.getParams(s);
 				if(reqParams != null) {
 
-					if(rparams == null) {
+					if(rparams == null || (rparams.size() < 1)) {
 						throw new Exception("Statement " + s + " requires params");
 					}
 					// Grab the params we got in the request for the statement
@@ -260,13 +260,16 @@ public class JDBCQueryRunner extends QueueMonitor {
 						ArrayList<Object> newlist = (ArrayList<Object>) sparam;
 						// First make sure we got as many params as we need.
 						if(newlist.size() != reqParams.size()) {
-							throw new Exception("Statement expects "+ reqParams.size() + " but was given " + newlist.size());
+							throw new Exception("Statement expects "+ reqParams.size() + " params but was given " + newlist.size());
 						}
 						// Add it to the list at the same index as the statement.
 						params.add(newlist);
 					} else {
 						// We'll just add this as one paramlist to the overall
 						// list.
+						if(rparams.size() != reqParams.size()) {
+							throw new Exception("Statement expects "+ reqParams.size() + " params but was given " + rparams.size());
+						}
 						params.add(rparams);
 					}
 				} else {
@@ -406,7 +409,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 				throw new Exception("Statement " + name + " requires params");
 			}
 			if(rparams.size() != reqParams.size()) {
-				throw new Exception("Statement expects " + reqParams.size() + " but was given " + rparams.size());
+				throw new Exception("Statement expects " + reqParams.size() + " params but was given " + rparams.size());
 			}
 
 			for(int i = 0; i < reqParams.size(); i++) {

@@ -170,6 +170,27 @@ public class QueryRunner {
 
 	@Test
 	/**
+	 * Test the getBool statement
+	 */
+	public void testSmallBool() {
+
+		try {
+			kestrelClient.flushAll();
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getBool\",\"params\":[true,1,2,3,4]}");
+
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("Got error for missing params", "{\"ERROR\":\"Statement expects 1 params but was given 5\"}", member);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
+
+		} catch(Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	/**
 	 * Test the multiple statements
 	 */
 	public void testMultiple() {
