@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TreeSet;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.joda.time.DateTime;
@@ -248,11 +247,12 @@ public class JDBCQueryRunner extends QueueMonitor {
 					if(rparams == null || (rparams.size() < 1)) {
 						throw new Exception("Statement " + s + " requires params");
 					}
-					// Grab the params we got in the request for the statement
-					// at this index.
-					Object sparam = rparams.get(i); // Let index exception handle things that don't exist
 					
 					if(statements.size() > 1) {
+						// Grab the params we got in the request for the statement
+						// at this index.
+						Object sparam = rparams.get(i); // Let index exception handle things that don't exist
+
 						// For multiple statements we will cast the param item
 						// as an ArrayList and add it to the param listing.
 						ArrayList<Object> newlist = (ArrayList<Object>) sparam;
@@ -328,11 +328,11 @@ public class JDBCQueryRunner extends QueueMonitor {
 						}
 					}
 				} finally {
-					if(ps != null) {
-						try { ps.close(); } catch(SQLException e) { logger.error("Failed to close statement", e); }
-					}
 					if(rs != null) {
 						try { rs.close(); } catch(SQLException e) { logger.error("Failed to close resultset", e); }
+					}
+					if(ps != null) {
+						try { ps.close(); } catch(SQLException e) { logger.error("Failed to close statement", e); }
 					}
 				}
 				
@@ -347,7 +347,6 @@ public class JDBCQueryRunner extends QueueMonitor {
 				logger.debug("Committing work.");
 				conn.commit(); 
 			}
-			
 		} catch(ProcessTimeoutException e) {
 			logger.error(e.getMessage());
 			throw new ProcessTimeoutException(e.getMessage());
