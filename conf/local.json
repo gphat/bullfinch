@@ -31,7 +31,7 @@
                 },
                 "statements" : {
                     "badTable": {
-                        "sql": "SELECT current_timestamp FROM public.TESTES_TABLE",
+                        "sql": "SELECT current_timestamp FROM public.TESTASDASD_TABLE",
                     },
                     "goodTable": {
                         "sql": "SELECT value FROM foobar",

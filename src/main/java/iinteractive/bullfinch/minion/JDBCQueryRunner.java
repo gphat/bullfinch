@@ -3,7 +3,6 @@ package iinteractive.bullfinch.minion;
 import iinteractive.bullfinch.PerformanceCollector;
 import iinteractive.bullfinch.Phrasebook;
 import iinteractive.bullfinch.Phrasebook.ParamType;
-import iinteractive.bullfinch.PrequelPhrase;
 import iinteractive.bullfinch.ProcessTimeoutException;
 import iinteractive.bullfinch.util.JSONResultSetWrapper;
 
@@ -126,7 +125,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 			Iterator<String> keys = statements.keySet().iterator();
 			while(keys.hasNext()) {
 				String key = keys.next();
-				logger.debug("Loading statement information for " + key);
+				logger.debug("Loading statement information for {}", key);
 				// Get the { sql , [ params ] } bits
 				HashMap<String,Object> stmtInfo = statements.get(key);
 
@@ -151,31 +150,10 @@ public class JDBCQueryRunner extends QueueMonitor {
 						pList.add(ParamType.valueOf(pTypeIter.next()));
 					}
 
-					logger.debug("Statement has " + pList.size() + " params");
-					this.statementBook.addPhrase(key, stmt, pList);
+					logger.debug("Statement has {} params", pList.size());
+					statementBook.addPhrase(key, stmt, pList);
 				} else {
-					this.statementBook.addPhrase(key, stmt);
-				}
-
-				if(stmtInfo.containsKey("wrap_in_transaction")) {
-					this.statementBook.WrapInTransaction(key);
-				}		 
-
-				if(stmtInfo.containsKey("prequels")) {
-					HashMap<String,HashMap<String,String>> prequels = (HashMap<String,HashMap<String,String>>)stmtInfo.get("prequels");
-					Iterator<String> prequel_keys = prequels.keySet().iterator();
-					while (prequel_keys.hasNext() ) {
-						String prequel_key=prequel_keys.next();
-						HashMap prequel_details = prequels.get(prequel_key);
-
-						String prequel_scope=(String)prequel_details.get("scope");
-						ArrayList prequel_params=(ArrayList)prequel_details.get("params");
-						Integer prequel_order=(Integer)prequel_details.get("order");
-
-						PrequelPhrase pp = new PrequelPhrase();
-						pp.setPrequelPhrase(prequel_key,prequel_order,prequel_scope,prequel_params);
-						this.statementBook.addPrequel(key,pp);
-					}
+					statementBook.addPhrase(key, stmt);
 				}
 			}
 		}
@@ -192,10 +170,24 @@ public class JDBCQueryRunner extends QueueMonitor {
 	public void handle(PerformanceCollector collector, String responseQueue, HashMap<String,Object> request) throws ProcessTimeoutException {
 
 		String tracer = (String) request.get("tracer");
+		
+		Object protoTrans = request.get("use_transaction");
+		boolean useTransaction = false;
+		if(protoTrans instanceof Boolean) {
+			useTransaction = (Boolean) protoTrans;
+		}
+		if(protoTrans instanceof Integer) {
+			if(((Integer) protoTrans) > 0) {
+				useTransaction = true;
+			}
+		}
+		if(protoTrans instanceof String) {
+			if(((String) protoTrans).equalsIgnoreCase("true")) {
+				useTransaction = true;
+			}
+		}
 
 		Connection conn = null;
-		ResultSet rs = null;
-		PreparedStatement ps = null;
 		try {
 			DateTime dtProcessBy;
 
@@ -210,41 +202,154 @@ public class JDBCQueryRunner extends QueueMonitor {
 			if (dtProcessBy.isBefore(DateTime.now()))
 				throw new ProcessTimeoutException("process-by time exceeded");
 
+			// Get the list of params early so we can use it when building up the
+			// list of work.
+			ArrayList<ArrayList<Object>> params = new ArrayList<ArrayList<Object>>();
+			ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
+			
+			// First check for a standalone statement
+			ArrayList<String> statements = new ArrayList<String>();
+			String rname = (String) request.get("statement");
+			if(rname == null) {
+				// Now try a list of statements
+				List<String> names = (List<String>) request.get("statements");
+				if(names == null) {
+					throw new Exception("Request must have either statement or statements.");
+				}
+				statements.addAll(names);
+			} else {
+				statements.add(rname);
+			}
+					
+			// Make sure we have some statements.
+			if(statements.size() < 1) {
+				throw new Exception("Request has no statements");
+			}
+			if(statements.size() > 1) {
+				if(!(rparams.get(0) instanceof ArrayList)) {
+					throw new Exception("Multiple statements require multiple lists of params!");
+				}
+				if(rparams.size() != statements.size()) {
+					throw new Exception("Multiple statements require a matching number of parameter lists.");
+				}
+			}
+			
+			// Validate that all of the incoming statements are in the
+			// Phrasebook and have the appropriate number of parameters.
+			for(int i = 0; i < statements.size(); i++) {
+				String s = statements.get(i);
+				logger.debug("Validating incoming statement {}", s);				
+
+				// Verify the statement is legit.
+				if(statementBook.getPhrase(s) == null) {
+					throw new Exception("Statement " + s + " does not exist!");
+				}
+				List<ParamType> reqParams = statementBook.getParams(s);
+				if(reqParams != null) {
+
+					if(rparams == null || (rparams.size() < 1)) {
+						throw new Exception("Statement " + s + " requires params");
+					}
+					// Grab the params we got in the request for the statement
+					// at this index.
+					Object sparam = rparams.get(i); // Let index exception handle things that don't exist
+					
+					if(statements.size() > 1) {
+						// For multiple statements we will cast the param item
+						// as an ArrayList and add it to the param listing.
+						ArrayList<Object> newlist = (ArrayList<Object>) sparam;
+						// First make sure we got as many params as we need.
+						if(newlist.size() != reqParams.size()) {
+							throw new Exception("Statement expects "+ reqParams.size() + " params but was given " + newlist.size());
+						}
+						// Add it to the list at the same index as the statement.
+						params.add(newlist);
+					} else {
+						// We'll just add this as one paramlist to the overall
+						// list.
+						if(rparams.size() != reqParams.size()) {
+							throw new Exception("Statement expects "+ reqParams.size() + " params but was given " + rparams.size());
+						}
+						params.add(rparams);
+					}
+				} else {
+					// Add an empty param list so we don't have to deal with null
+					params.add(new ArrayList<Object>());
+				}
+			}
+			
+			logger.debug("Have {} statements and {} parameters.", statements.size(), params.size());
+			if(params.size() != statements.size()) {
+				throw new Exception("Number of statements does not match number of parameters!");
+			}
+			
 			// Grab a connection from the pool
 			long connStart = System.currentTimeMillis();
 			conn = this.ds.getConnection();
 			collector.add(
-					"Connection retrieval",
-					System.currentTimeMillis() - connStart,
-					tracer
-					);
+				"Connection retrieval",
+				System.currentTimeMillis() - connStart,
+				tracer
+			);
+			if(useTransaction) {
+				// We are to use a transaction, set auto-commit to false.
+				conn.setAutoCommit(false);
+			}
+			
+			// Execute each statement in turn, sending it's results back as
+			// we get them.
+			for(int i = 0; i < statements.size(); i++) {
+				long start = System.currentTimeMillis();
+				String s = statements.get(i);
+				
+				PreparedStatement ps = null;
+				ResultSet rs = null;
+				
+				ArrayList<Object> sparams = params.get(i);
+				String sql = statementBook.getPhrase(s);
+				
+				// Execute each statement in it's own try to protect it's
+				// ps and rs, guaranteeing they are closed.
+				try {
+					ps = bindAndExecuteQuery(conn, s, sql, sparams);
+					rs = ps.getResultSet();
 
-			// Get the resultset back and transfer it's content into a list so
-			// that we can return an iterator AFTER closing the connection.
-			long start = System.currentTimeMillis();
-			ps = bindAndExecuteQuery(conn, request);
-			rs = ps.getResultSet();
-
-			if(rs != null) {
-				collector.add(
-						"Query preparation and execution",
-						System.currentTimeMillis() - start,
-						tracer
+					if(rs != null) {
+						collector.add(
+							"Query preparation and execution",
+							System.currentTimeMillis() - start,
+							tracer
 						);
 
-				JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
-						(String) request.get("tracer"), rs
+						JSONResultSetWrapper wrapper =  new JSONResultSetWrapper(
+							(String) request.get("tracer"), rs
 						);
 
-				while(wrapper.hasNext()) {
-					sendMessage(responseQueue, wrapper.next());
+						while(wrapper.hasNext()) {
+							sendMessage(responseQueue, wrapper.next());
+						}
+					}
+				} finally {
+					if(ps != null) {
+						try { ps.close(); } catch(SQLException e) { logger.error("Failed to close statement", e); }
+					}
+					if(rs != null) {
+						try { rs.close(); } catch(SQLException e) { logger.error("Failed to close resultset", e); }
+					}
 				}
+				
 			}
 
 			// Check the process timeout again
 			if (dtProcessBy.isBefore(DateTime.now()))
 				throw new ProcessTimeoutException("process-by time exceeded");
 
+			if(useTransaction) {
+				// Commit our transaction
+				logger.debug("Committing work.");
+				conn.commit(); 
+			}
+			
 		} catch(ProcessTimeoutException e) {
 			logger.error(e.getMessage());
 			throw new ProcessTimeoutException(e.getMessage());
@@ -261,13 +366,8 @@ public class JDBCQueryRunner extends QueueMonitor {
 			// iterator from.
 			sendMessage(responseQueue, obj.toString());
 		} finally {
-			if(rs != null) {
-				try { rs.close(); } catch(SQLException e) { logger.error("Failed to close resultset", e); }
-			}
-			if(ps != null) {
-				try { ps.close(); } catch(SQLException e) { logger.error("Failed to close statement", e); }
-			}
 			if(conn != null) {
+				try { conn.setAutoCommit(true); } catch(SQLException e) { logger.error("Failed to set auto-commit back to true"); }
 				try { conn.close(); } catch(SQLException e) { logger.error("Failed to close connection", e); }
 			}
 		}
@@ -298,54 +398,7 @@ public class JDBCQueryRunner extends QueueMonitor {
 	/*
 	 * Find the query and execute it it.
 	 */
-	private PreparedStatement bindAndExecuteQuery(Connection conn, HashMap<String,Object> request) throws Exception {
-
-		// Verify the requested statement exists
-		String name = (String) request.get("statement");
-		String statement = this.statementBook.getPhrase(name);
-		if(statement == null) {
-			throw new Exception("Unknown statement " + name);
-		}
-
-		@SuppressWarnings("unchecked")
-		ArrayList<Object> rparams = (ArrayList<Object>) request.get("params");
-		HashMap<String,PrequelPhrase> prequels = this.statementBook.getPrequels(name);
-		Boolean wrapInTransaction = this.statementBook.getWrapInTransaction(name);
-		HashMap<Integer,PrequelPhrase> WorkerPrequels   = new HashMap();
-		HashMap<Integer,PrequelPhrase> StatementPrequels = new HashMap();
-		Iterator<PrequelPhrase> pps = prequels.values().iterator();
-		while (pps.hasNext()) {
-			PrequelPhrase prequel = pps.next();
-			String prequel_name = prequel.getName();
-			String prequel_scope = prequel.getScope();
-			Integer prequel_order = prequel.getOrder();
-			if ("worker".equals(prequel_scope)) {
-				WorkerPrequels.put(prequel_order, prequel);
-			} else if ("statement".equals(prequel_scope)) {
-				StatementPrequels.put(prequel_order, prequel);
-			} else {
-				logger.error("Unknown scope:" + prequel_scope + "for prequel statment:" + prequel_name + " on statment:" + name);
-				continue;
-			}
-		}
-
-		TreeSet<Integer> workerKeys = new TreeSet<Integer>(WorkerPrequels.keySet());
-		for (Integer i : workerKeys) {
-			PrequelPhrase prequel = WorkerPrequels.get(i);
-			if (this.executedWorkerPrequels.containsKey(prequel.getName())) {
-				continue;
-			}
-			HashMap<String, Object> prequel_request = prequel.generateRequest(rparams);
-			PreparedStatement done = bindAndExecuteQuery(conn, prequel_request);
-			this.executedWorkerPrequels.put(prequel.getName(), true);
-		}
-
-		TreeSet<Integer> statementKeys = new TreeSet<Integer>(StatementPrequels.keySet());
-		for (Integer i : statementKeys) {
-			PrequelPhrase prequel = StatementPrequels.get(i);
-			HashMap<String, Object> prequel_request = prequel.generateRequest(rparams);
-			PreparedStatement done = bindAndExecuteQuery(conn, prequel_request);
-		}
+	private PreparedStatement bindAndExecuteQuery(Connection conn, String name, String statement, ArrayList<Object> rparams) throws Exception {
 
 		PreparedStatement prepStatement = conn.prepareStatement(statement);
 		List<ParamType> reqParams = this.statementBook.getParams(name);
@@ -356,27 +409,27 @@ public class JDBCQueryRunner extends QueueMonitor {
 				throw new Exception("Statement " + name + " requires params");
 			}
 			if(rparams.size() != reqParams.size()) {
-				throw new Exception("Statement expects " + reqParams.size() + " but was given " + rparams.size());
+				throw new Exception("Statement expects " + reqParams.size() + " params but was given " + rparams.size());
 			}
 
 			for(int i = 0; i < reqParams.size(); i++) {
-		 ParamType paramType = reqParams.get(i);
-		 switch ( paramType ) {
-		 case BOOLEAN :
-		 	 prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());
-			 break;
-		 case NUMBER :
-			 prepStatement.setDouble(i + 1, ((Number) rparams.get(i)).doubleValue());
-			 break;
-		 case INTEGER :
-			 prepStatement.setInt(i + 1, ((Long) rparams.get(i)).intValue() );
-			 break;
-		 case STRING :
-			 prepStatement.setString(i + 1, (String) rparams.get(i));
-			 break;
-		 default :
-			 throw new Exception ("Don't understand param-type '" + paramType + "'");
-		 }
+				ParamType paramType = reqParams.get(i);
+				switch ( paramType ) {
+				case BOOLEAN :
+					prepStatement.setBoolean(i + 1, ((Boolean) rparams.get(i)).booleanValue());
+					break;
+				case NUMBER :
+					prepStatement.setDouble(i + 1, ((Number) rparams.get(i)).doubleValue());
+					break;
+				case INTEGER :
+					prepStatement.setInt(i + 1, ((Long) rparams.get(i)).intValue() );
+					break;
+				case STRING :
+					prepStatement.setString(i + 1, (String) rparams.get(i));
+					break;
+				default :
+					throw new Exception ("Don't understand param-type '" + paramType + "'");
+				}
 			}
 		}
 

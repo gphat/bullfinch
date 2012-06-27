@@ -67,10 +67,41 @@ expects the message to look like this:
 
 The params are optional, but required if the statement has parameters!
 
+The response queue is also optional.  If none is supposed then no response
+will be sent back.
+
 The ResultSet that comes from the query is then encoded into JSON and returned
 one row at a time to the response_queue specified in the message in this form:
 
     { "row_num": 1, "row_data": { "name": "Steve", "age": 30 } }
+
+# MULTIPLE STATEMENTS
+
+You may also send multiple statements in one request, like so:
+
+    {
+        "statements" : [ "statementName", "otherStatement" ]
+        "params" : [ [ 12, "foo" ], [] ],
+        "response_queue" : "response-blah-blah",
+        "process-by" : "ISO8601 Date" // Optional, so old things can be ignored
+    }
+
+Note the use of the keys **statements** rather than **statement**.  Also note
+that every statement **must** have a parameter list.  If the statement has
+no parameters then it should be empty.
+
+# TRANSACTIONS
+
+Transactions only make sense for multiple-statements.  If you'd like to wrap
+the call in a transaction do this:
+
+    {
+        "use_transaction" : true,
+        "statements" : [ "statementName", "otherStatement" ]
+        "params" : [ [ 12, "foo" ], [] ],
+        "response_queue" : "response-blah-blah",
+        "process-by" : "ISO8601 Date" // Optional, so old things can be ignored
+    }
 
 ## TYPES
 

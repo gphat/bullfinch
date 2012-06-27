@@ -37,7 +37,7 @@ public class QueryRunner {
 	public void createDatabase() {
 
 		try {
-			Connection conn = DriverManager.getConnection("jdbc:hsqldb:file:tmp/tmp;shutdown=true", "SA", "");
+			Connection conn = DriverManager.getConnection("jdbc:hsqldb:mem:tmp/tmp;shutdown=true", "SA", "");
 
 			Statement stMakeTable = conn.createStatement();
 			stMakeTable.execute("CREATE TABLE PUBLIC.TEST_TABLE (an_int INTEGER, a_float FLOAT, a_bool BOOLEAN, a_string VARCHAR(32))");
@@ -89,9 +89,10 @@ public class QueryRunner {
 	public void testMissingParams() {
 
 		try {
+			kestrelClient.flushAll();
 			HashMap<String,Object> request = new HashMap<String,Object>();
 			request.put("statement", "getInt");
-
+			
 			worker.handle(pc, responseQueue, request);
 
 			String member = this.kestrelClient.get(responseQueue);
@@ -111,6 +112,7 @@ public class QueryRunner {
 	public void testInt() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getInt\",\"params\":[12]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -131,6 +133,7 @@ public class QueryRunner {
 	public void testFloat() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getFloat\",\"params\":[3.14]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -151,6 +154,7 @@ public class QueryRunner {
 	public void testBool() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getBool\",\"params\":[true]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -166,11 +170,83 @@ public class QueryRunner {
 
 	@Test
 	/**
+	 * Test the getBool statement
+	 */
+	public void testSmallBool() {
+
+		try {
+			kestrelClient.flushAll();
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getBool\",\"params\":[true,1,2,3,4]}");
+
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("Got error for missing params", "{\"ERROR\":\"Statement expects 1 params but was given 5\"}", member);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
+
+		} catch(Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	/**
+	 * Test the multiple statements
+	 */
+	public void testMultiple() {
+
+		try {
+			kestrelClient.flushAll();
+			JSONObject request = (JSONObject) JSONValue.parse("{\"statements\":[\"getBool\",\"getFloat\",\"goodTable\"],\"params\":[[true],[3.14],[]]}");
+
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("getBool result", "{\"row_data\":{\"A_BOOL\":true},\"row_num\":1}", member);
+			String member2 = kestrelClient.get(responseQueue);
+			assertEquals("getFloat result", "{\"row_data\":{\"A_FLOAT\":3.14},\"row_num\":1}", member2);
+			String member3 = kestrelClient.get(responseQueue);
+			assertEquals("goodTable result", "{\"row_data\":{\"AN_INT\":12},\"row_num\":1}", member3);
+			String member4 = kestrelClient.get(responseQueue);
+			assertEquals("goodTable result", "{\"row_data\":{\"AN_INT\":13},\"row_num\":2}", member4);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
+
+		} catch(Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	/**
+	 * Test the multiple statements in a transaction.
+	 */
+	public void testMultipleTransaction() {
+
+		try {
+			kestrelClient.flushAll();
+			JSONObject request = (JSONObject) JSONValue.parse("{\"use_transaction\":true,\"statements\":[\"getBool\",\"getFloat\"],\"params\":[[true],[3.14]]}");
+
+			worker.handle(pc, responseQueue, request);
+			String member = this.kestrelClient.get(responseQueue);
+			assertEquals("getBool result", "{\"row_data\":{\"A_BOOL\":true},\"row_num\":1}", member);
+			String member2 = kestrelClient.get(responseQueue);
+			assertEquals("getFloat result", "{\"row_data\":{\"A_FLOAT\":3.14},\"row_num\":1}", member2);
+			assertTrue("no more rows", this.kestrelClient.get(responseQueue) == null);
+
+		} catch(Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	/**
 	 * Test the getString statement
 	 */
 	public void testString() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"getString\",\"params\":[\"cory\"]}");
 
 			worker.handle(pc, responseQueue, request);
@@ -190,6 +266,7 @@ public class QueryRunner {
 	public void testBadTable() {
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"badTable\"}");
 			worker.handle(pc, responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);
@@ -200,6 +277,7 @@ public class QueryRunner {
 		}
 
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"goodTable\"}");
 			worker.handle(pc, responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);
@@ -211,8 +289,9 @@ public class QueryRunner {
 
 	@Test
 	public void testInsert() {
-
+		
 		try {
+			kestrelClient.flushAll();
 			JSONObject request = (JSONObject) JSONValue.parse("{\"statement\":\"addOne\"}");
 			worker.handle(pc,  responseQueue, request);
 			String member = this.kestrelClient.get(responseQueue);

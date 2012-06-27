@@ -64,7 +64,6 @@
      <include name="test/*.java"/>
      <include name="test/jdbcminion/*.java"/>
     </fileset>
-<!--    <formatter type="failure"/>-->
     <!-- I want to see something ... -->
     <formatter type="xml" usefile="true"/>
    </batchtest>
