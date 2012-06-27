@@ -76,8 +76,11 @@ public abstract class KestrelBased extends Minion {
 	 */
 	protected void sendMessage(String queue, String message) {
 
-		if(message == null) {
+		if(message == null ) {
 			logger.warn("Ignoring empty response we were supposed to send to kestrel");
+			return;
+		}
+		if(queue == null ) {
 			return;
 		}
 
