@@ -351,6 +351,9 @@ public class JDBCQueryRunner extends QueueMonitor {
 			logger.error(e.getMessage());
 			throw new ProcessTimeoutException(e.getMessage());
 		} catch(Exception e) {
+			if(conn != null) {
+			  try { conn.rollback(); logger.error("Rolled back transaction"); } catch(Exception ex) { logger.error("Failed to roll back!"); }
+		  }
 			logger.error("Got an exception from SQL execution", e);
 			// In the case of an exception, reply back with an ERROR as the
 			// key and the message as the value.
